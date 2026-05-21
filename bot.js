@@ -372,11 +372,12 @@ async function askGroq(userText, chatId = null) {
         'Sen o\'zbek tilida javob beruvchi aqlli yordamchi botsiz.\n' +
         'Qoidalar:\n' +
         '1. HAR DOIM o\'zbek tilida javob ber.\n' +
-        '2. O\'zbek so\'zlashuv tilini yaxshi tushun: "mazzam yo\'q"=kasal, "gap yo\'q"=yaxshi.\n' +
-        '3. Maksimum 3 jumla. Qisqa, aniq, foydali.\n' +
-        '4. Foydalanuvchining gapini HECH QACHON qaytarma.\n' +
-        '5. Javob boshiga hech qanday nom yoki prefiks yozma.\n' +
-        '6. Noaniq savollarda aniqlashtir.',
+        '2. O\'zbek so\'zlashuv tilini tushun: "mazzam yo\'q"=kasal, "gap yo\'q"=yaxshi.\n' +
+        '3. Maksimum 3 jumla. Qisqa va aniq.\n' +
+        '4. Foydalanuvchi gapini QAYTARMA.\n' +
+        '5. Javob boshiga HECH QANDAY prefiks, nom yoki "Salom" yozma.\n' +
+        '6. Faqat bir marta salomlash — keyin salomlashma.\n' +
+        '7. Noaniq savollarda aniqlashtir.',
     },
     ...history,
     { role: 'user', content: userText },
@@ -597,7 +598,7 @@ const MAIN_KB = {
       [{ text: '✉️ Adminga Savol' },      { text: '⭐ Botni Baholash' }],
       [{ text: 'ℹ️ Bot Haqida' },         { text: '📊 Statistika' }],
       [{ text: '🔢 BMI Hisoblash' },      { text: '🌐 Tarjimon' }],
-      [{ text: '🎲 Tasodifiy Tanlov' },   { text: '💡 Hayotiy Maslahatlar' }],
+      [{ text: '🎲 Tasodifiy Tanlov' },   { text: '🎨 Rasm Yaratish' }],
     ],
     resize_keyboard: true,
   },
@@ -1251,6 +1252,35 @@ bot.on('message', async (msg) => {
     );
   }
 
+  // ══ RASM YARATISH ═════════════════════════════
+  if (text.includes('Rasm Yaratish') || text.includes('🎨')) {
+    userState[chatId] = { mode: 'image_gen' };
+    return md(chatId,
+      '🎨 *Rasm Yaratish*\n\nRasm haqida inglizcha yozing:\n👉 _a cat sitting on a mountain_\n👉 _sunset over ocean, realistic_\n👉 _futuristic city at night_\n\n_(Inglizcha yozsangiz yaxshiroq natija beradi)_',
+      NO_KB
+    );
+  }
+
+  if (state?.mode === 'image_gen') {
+    userState[chatId] = null;
+    await sendTyping(chatId);
+    const prompt = encodeURIComponent(text);
+    const imageUrl = `https://image.pollinations.ai/prompt/${prompt}?width=512&height=512&nologo=true`;
+    try {
+      await bot.sendPhoto(chatId, imageUrl, {
+        caption: `🎨 *${text}*`,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[{ text: '🔄 Yana rasm', callback_data: `img_${text.slice(0,50)}` }]],
+          ...MAIN_KB.reply_markup,
+        },
+      });
+    } catch {
+      md(chatId, '❌ Rasm yaratib bo\'lmadi. Boshqa so\'z bilan urinib ko\'ring.', MAIN_KB);
+    }
+    return;
+  }
+
   // ══ TASODIFIY TANLOV ══════════════════════════
   if (text.includes('Tasodifiy') || text.includes('🎲') ||
       /yoki/i.test(text) && text.includes('?')) {
@@ -1405,6 +1435,25 @@ bot.on('callback_query', async (query) => {
   if (data === 'translate_more') {
     userState[chatId] = { mode: 'translate' };
     return md(chatId, '🌐 Tarjima qilmoqchi bo\'lgan so\'z yoki jumlani yozing:', NO_KB);
+  }
+
+  // Rasm — qayta yaratish
+  if (data.startsWith('img_')) {
+    const prompt = data.replace('img_', '');
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true&seed=${Math.floor(Math.random()*9999)}`;
+    try {
+      await bot.sendPhoto(chatId, imageUrl, {
+        caption: `🎨 *${prompt}*`,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[{ text: '🔄 Yana rasm', callback_data: `img_${prompt}` }]],
+          ...MAIN_KB.reply_markup,
+        },
+      });
+    } catch {
+      md(chatId, '❌ Rasm yaratib bo\'lmadi.', MAIN_KB);
+    }
+    return;
   }
 
   // Tasodifiy tanlov — qayta tashlash
