@@ -1305,23 +1305,37 @@ bot.on('message', async (msg) => {
 
   if (state?.mode === 'music_search') {
     userState[chatId] = null;
+    await sendTyping(chatId);
     const query = encodeURIComponent(text);
     const ytUrl = `https://www.youtube.com/results?search_query=${query}`;
     const ytMusic = `https://music.youtube.com/search?q=${query}`;
-    const shazam = `https://www.shazam.com/search?q=${query}`;
+
+    // YouTube Search API (bepul, key shart emas) orqali birinchi video topish
+    let videoId = null;
+    let videoTitle = text;
+    try {
+      const searchData = await fetchJSON(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&type=video&maxResults=1&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`
+      );
+      videoId = searchData?.items?.[0]?.id?.videoId;
+      videoTitle = searchData?.items?.[0]?.snippet?.title || text;
+    } catch {}
+
+    const buttons = [
+      [{ text: '▶️ YouTube da ko\'rish', url: ytUrl }],
+      [{ text: '🎵 YouTube Music', url: ytMusic }],
+    ];
+
+    if (videoId) {
+      buttons.push([{ text: '⬇️ MP3 Yuklab olish', url: `https://cobalt.tools/#${encodeURIComponent('https://youtube.com/watch?v=' + videoId)}` }]);
+      buttons.push([{ text: '🎬 ' + videoTitle.slice(0, 40), url: `https://youtube.com/watch?v=${videoId}` }]);
+    }
+
+    buttons.push([{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }]);
+
     return md(chatId,
-      `🎵 *"${text}"* bo'yicha natijalar:`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '▶️ YouTube', url: ytUrl }],
-            [{ text: '🎵 YouTube Music', url: ytMusic }],
-            [{ text: '🔍 Shazam', url: shazam }],
-            [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
-          ],
-        },
-      }
+      `🎵 *"${text}"* bo'yicha natijalar:${videoId ? `\n\n🎬 _${videoTitle}_` : ''}`,
+      { parse_mode: 'Markdown', reply_markup: { inline_keyboard: buttons } }
     );
   }
 
