@@ -1320,7 +1320,6 @@ bot.on('message', async (msg) => {
             [{ text: '🔍 Shazam', url: shazam }],
             [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
           ],
-          ...MAIN_KB.reply_markup,
         },
       }
     );
