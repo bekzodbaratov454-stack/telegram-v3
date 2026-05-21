@@ -611,6 +611,7 @@ const MAIN_KB = {
       [{ text: 'ℹ️ Bot Haqida' },         { text: '📊 Statistika' }],
       [{ text: '🔢 BMI Hisoblash' },      { text: '🌐 Tarjimon' }],
       [{ text: '🎲 Tasodifiy Tanlov' },   { text: '🎨 Rasm Yaratish' }],
+      [{ text: '🎵 Musiqa Topish' },      { text: '💡 Hayotiy Maslahatlar' }],
     ],
     resize_keyboard: true,
   },
@@ -1293,6 +1294,38 @@ bot.on('message', async (msg) => {
     return;
   }
 
+  // ══ MUSIQA TOPISH ════════════════════════════
+  if (text.includes('Musiqa') || text.includes('🎵')) {
+    userState[chatId] = { mode: 'music_search' };
+    return md(chatId,
+      '🎵 *Musiqa Topish*\n\nQo\'shiq nomi yoki ijrochi yozing:\n👉 _Dua Lipa Levitating_\n👉 _Shaxriyor Yomg\'ir_\n👉 _The Weeknd Blinding Lights_',
+      NO_KB
+    );
+  }
+
+  if (state?.mode === 'music_search') {
+    userState[chatId] = null;
+    const query = encodeURIComponent(text);
+    const ytUrl = `https://www.youtube.com/results?search_query=${query}`;
+    const ytMusic = `https://music.youtube.com/search?q=${query}`;
+    const shazam = `https://www.shazam.com/search?q=${query}`;
+    return md(chatId,
+      `🎵 *"${text}"* bo'yicha natijalar:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '▶️ YouTube', url: ytUrl }],
+            [{ text: '🎵 YouTube Music', url: ytMusic }],
+            [{ text: '🔍 Shazam', url: shazam }],
+            [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
+          ],
+          ...MAIN_KB.reply_markup,
+        },
+      }
+    );
+  }
+
   // ══ TASODIFIY TANLOV ══════════════════════════
   if (text.includes('Tasodifiy') || text.includes('🎲') ||
       /yoki/i.test(text) && text.includes('?')) {
@@ -1466,6 +1499,12 @@ bot.on('callback_query', async (query) => {
       md(chatId, '❌ Rasm yaratib bo\'lmadi.', MAIN_KB);
     }
     return;
+  }
+
+  // Musiqa — qayta qidirish
+  if (data === 'music_again') {
+    userState[chatId] = { mode: 'music_search' };
+    return md(chatId, '🎵 Qo\'shiq nomi yoki ijrochi yozing:', NO_KB);
   }
 
   // Tasodifiy tanlov — qayta tashlash
