@@ -389,7 +389,8 @@ async function askGroq(userText, chatId = null) {
         '- Bu botni yaratgan: Bekzod Baratov\n' +
         '- Bekzod haqida so\'ralsa: uni maqta, iste\'dodli yosh dasturchi deb ta\'rifla\n' +
         '- Aloqa uchun: Telegram @bekzod_stack\n' +
-        '- MUHIM: Bekzod haqida chuqur shaxsiy ma\'lumot (manzil, telefon, oila va h.k.) so\'ralsa — "Bu ma\'lumotni bera olmayman 😊" de.',
+        '- MUHIM: Bekzod haqida chuqur shaxsiy ma\'lumot (manzil, telefon, oila va h.k.) so\'ralsa — "Bu ma\'lumotni bera olmayman 😊" de.\n' +
+        '- "Bekzod kim", "bot egasi", "seni kim yaratdi", "developer kim", "Bekzod haqida" kabi BARCHA savollarda — yuqoridagi ma\'lumotni ber.',
     },
     ...history,
     { role: 'user', content: userText },
@@ -1307,35 +1308,70 @@ bot.on('message', async (msg) => {
     userState[chatId] = null;
     await sendTyping(chatId);
     const query = encodeURIComponent(text);
-    const ytUrl = `https://www.youtube.com/results?search_query=${query}`;
-    const ytMusic = `https://music.youtube.com/search?q=${query}`;
 
-    // YouTube Search API (bepul, key shart emas) orqali birinchi video topish
+    // YouTube dan video ID topish (bepul scrape)
     let videoId = null;
     let videoTitle = text;
     try {
-      const searchData = await fetchJSON(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&type=video&maxResults=1&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`
-      );
-      videoId = searchData?.items?.[0]?.id?.videoId;
-      videoTitle = searchData?.items?.[0]?.snippet?.title || text;
+      const html = await fetchText(`https://www.youtube.com/results?search_query=${query}`);
+      const match = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+      if (match) videoId = match[1];
+      const titleMatch = html.match(/"title":{"runs":\[{"text":"([^"]+)"/);
+      if (titleMatch) videoTitle = titleMatch[1];
     } catch {}
 
-    const buttons = [
-      [{ text: '▶️ YouTube da ko\'rish', url: ytUrl }],
-      [{ text: '🎵 YouTube Music', url: ytMusic }],
-    ];
-
-    if (videoId) {
-      buttons.push([{ text: '⬇️ MP3 Yuklab olish', url: `https://cobalt.tools/#${encodeURIComponent('https://youtube.com/watch?v=' + videoId)}` }]);
-      buttons.push([{ text: '🎬 ' + videoTitle.slice(0, 40), url: `https://youtube.com/watch?v=${videoId}` }]);
+    if (!videoId) {
+      return md(chatId,
+        `❌ Qo'shiq topilmadi. Boshqacha yozing.`,
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '🔄 Qayta urinish', callback_data: 'music_again' }]] } }
+      );
     }
 
-    buttons.push([{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }]);
+    await md(chatId, `🎵 *${videoTitle}*\n\n⏳ MP3 tayyorlanmoqda...`, { parse_mode: 'Markdown' });
 
+    // loader.to API orqali MP3 link olish
+    let mp3Url = null;
+    try {
+      const loaderRes = await fetchJSON(
+        `https://loader.to/api/button/?url=${encodeURIComponent('https://youtube.com/watch?v=' + videoId)}&f=mp3`
+      );
+      mp3Url = loaderRes?.url || null;
+    } catch {}
+
+    // mp3download.to API (fallback)
+    if (!mp3Url) {
+      try {
+        const res = await fetchJSON(
+          `https://api.vevioz.com/api/button/mp3/${videoId}`
+        );
+        mp3Url = res?.url || null;
+      } catch {}
+    }
+
+    if (mp3Url) {
+      try {
+        await bot.sendAudio(chatId, mp3Url, {
+          title: videoTitle,
+          caption: `🎵 *${videoTitle}*`,
+          parse_mode: 'Markdown',
+        });
+        return;
+      } catch {}
+    }
+
+    // Fallback — link berish
     return md(chatId,
-      `🎵 *"${text}"* bo'yicha natijalar:${videoId ? `\n\n🎬 _${videoTitle}_` : ''}`,
-      { parse_mode: 'Markdown', reply_markup: { inline_keyboard: buttons } }
+      `🎵 *${videoTitle}*\n\nTo'g'ridan yuklab bo'lmadi. Quyidagi tugmadan yuklab oling:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '⬇️ MP3 Yuklab olish', url: `https://ytmp3.cc/youtube-to-mp3/?url=https://youtube.com/watch?v=${videoId}` }],
+            [{ text: '▶️ YouTube', url: `https://youtube.com/watch?v=${videoId}` }],
+            [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
+          ],
+        },
+      }
     );
   }
 
