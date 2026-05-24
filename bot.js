@@ -395,7 +395,7 @@ async function askGroq(userText, chatId = null) {
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     messages,
     max_tokens: 400,
-    temperature: 0.6,
+    temperature: 0.5,
   });
 
   return new Promise((resolve) => {
@@ -618,7 +618,7 @@ const MAIN_KB = {
       [{ text: 'ℹ️ Bot Haqida' },         { text: '📊 Statistika' }],
       [{ text: '🔢 BMI Hisoblash' },      { text: '🌐 Tarjimon' }],
       [{ text: '🎲 Tasodifiy Tanlov' },   { text: '🎨 Rasm Yaratish' }],
-      [{ text: '🎵 Musiqa Topish' },      { text: '💡 Hayotiy Maslahatlar' }],
+      [{ text: '🎵 Musiqa Topish' },      { text: '� Qidirish' }],h
     ],
     resize_keyboard: true,
   },
@@ -1381,6 +1381,31 @@ bot.on('message', async (msg) => {
     );
   }
 
+  // ══ QIDIRISH ══════════════════════════════════
+  if (text.includes('Qidirish') || text.includes('🔍')) {
+    userState[chatId] = { mode: 'web_search' };
+    return md(chatId,
+      '🔍 *Qidirish*\n\nNima qidirmoqchisiz?\n👉 _Python darslari_\n👉 _Toshkent ob-havosi_\n👉 _iPhone 15 narxi_',
+      NO_KB
+    );
+  }
+
+  if (state?.mode === 'web_search') {
+    userState[chatId] = null;
+    const q = encodeURIComponent(text);
+    return md(chatId, `🔍 *"${text}"* bo'yicha qidirish:`, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🌐 Google', url: `https://www.google.com/search?q=${q}` }],
+          [{ text: '📺 YouTube', url: `https://www.youtube.com/results?search_query=${q}` }],
+          [{ text: '📖 Wikipedia', url: `https://uz.wikipedia.org/w/index.php?search=${q}` }],
+          [{ text: '🔄 Yana qidirish', callback_data: 'search_again' }],
+        ],
+      },
+    });
+  }
+
   // ══ TASODIFIY TANLOV ══════════════════════════
   if (text.includes('Tasodifiy') || text.includes('🎲') ||
       /yoki/i.test(text) && text.includes('?')) {
@@ -1560,6 +1585,11 @@ bot.on('callback_query', async (query) => {
   if (data === 'music_again') {
     userState[chatId] = { mode: 'music_search' };
     return md(chatId, '🎵 Qo\'shiq nomi yoki ijrochi yozing:', NO_KB);
+  }
+
+  if (data === 'search_again') {
+    userState[chatId] = { mode: 'web_search' };
+    return md(chatId, '🔍 Nima qidirmoqchisiz?', NO_KB);
   }
 
   // Tasodifiy tanlov — qayta tashlash
