@@ -618,7 +618,7 @@ const MAIN_KB = {
       [{ text: 'ℹ️ Bot Haqida' },         { text: '📊 Statistika' }],
       [{ text: '🔢 BMI Hisoblash' },      { text: '🌐 Tarjimon' }],
       [{ text: '🎲 Tasodifiy Tanlov' },   { text: '🎨 Rasm Yaratish' }],
-      [{ text: '🎵 Musiqa Topish' },      { text: '� Qidirish' }],h
+      [{ text: '\uD83C\uDFB5 Musiqa Topish' },      { text: '\uD83D\uDD0D Qidirish' }],
     ],
     resize_keyboard: true,
   },
