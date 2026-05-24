@@ -1305,7 +1305,7 @@ bot.on('message', async (msg) => {
   if (text.includes('Musiqa') || text.includes('🎵')) {
     userState[chatId] = { mode: 'music_search' };
     return md(chatId,
-      '🎵 *Musiqa Topish*\n\nQo\'shiq nomi yoki ijrochi yozing:\n👉 _Dua Lipa Levitating_\n👉 _Shaxriyor Yomg\'ir_\n👉 _The Weeknd Blinding Lights_',
+      '🎵 *Musiqa Topish*\n\nQo\'shiq nomi, ijrochi yoki YouTube link yozing:\n👉 _Dua Lipa Levitating_\n👉 _https://youtu.be/xxxxx_\n👉 _Shaxriyor Yomg\'ir_',
       NO_KB
     );
   }
@@ -1313,67 +1313,68 @@ bot.on('message', async (msg) => {
   if (state?.mode === 'music_search') {
     userState[chatId] = null;
     await sendTyping(chatId);
-    const query = encodeURIComponent(text);
 
-    // YouTube dan video ID topish (bepul scrape)
+    // YouTube link berilgan bo'lsa — to'g'ridan ID olish
     let videoId = null;
     let videoTitle = text;
-    try {
-      const html = await fetchText(`https://www.youtube.com/results?search_query=${query}`);
-      const match = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      if (match) videoId = match[1];
-      const titleMatch = html.match(/"title":{"runs":\[{"text":"([^"]+)"/);
-      if (titleMatch) videoTitle = titleMatch[1];
-    } catch {}
+    const ytLinkMatch = text.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
+    if (ytLinkMatch) {
+      videoId = ytLinkMatch[1];
+    } else {
+      // Nom bo'yicha qidirish
+      const query = encodeURIComponent(text);
+      try {
+        const html = await fetchText(`https://www.youtube.com/results?search_query=${query}`);
+        const match = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
+        if (match) videoId = match[1];
+        const titleMatch = html.match(/"title":{"runs":\[{"text":"([^"]+)"/);
+        if (titleMatch) videoTitle = titleMatch[1];
+      } catch {}
+    }
 
     if (!videoId) {
-      return md(chatId,
-        `❌ Qo'shiq topilmadi. Boshqacha yozing.`,
-        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '🔄 Qayta urinish', callback_data: 'music_again' }]] } }
-      );
+      return md(chatId, '❌ Qo\'shiq topilmadi. Boshqacha yozing yoki YouTube link yuboring.', {
+        reply_markup: { inline_keyboard: [[{ text: '🔄 Qayta urinish', callback_data: 'music_again' }]] }
+      });
     }
 
-    await md(chatId, `🎵 *${videoTitle}*\n\n⏳ MP3 tayyorlanmoqda...`, { parse_mode: 'Markdown' });
+    const ytUrl = `https://youtube.com/watch?v=${videoId}`;
+    const waitMsg = await md(chatId, `🎵 *${videoTitle}*\n\n⏳ Audio yuklanmoqda...`, { parse_mode: 'Markdown' });
 
-    // loader.to API orqali MP3 link olish
-    let mp3Url = null;
+    // ytdl-core orqali audio stream yuborish
     try {
-      const loaderRes = await fetchJSON(
-        `https://loader.to/api/button/?url=${encodeURIComponent('https://youtube.com/watch?v=' + videoId)}&f=mp3`
-      );
-      mp3Url = loaderRes?.url || null;
-    } catch {}
-
-    // mp3download.to API (fallback)
-    if (!mp3Url) {
-      try {
-        const res = await fetchJSON(
-          `https://api.vevioz.com/api/button/mp3/${videoId}`
-        );
-        mp3Url = res?.url || null;
-      } catch {}
+      const ytdl = require('@distube/ytdl-core');
+      const info = await ytdl.getInfo(ytUrl);
+      videoTitle = info.videoDetails.title;
+      const audioStream = ytdl(ytUrl, {
+        filter: 'audioonly',
+        quality: 'highestaudio',
+        requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      });
+      await bot.sendAudio(chatId, audioStream, {
+        title: videoTitle,
+        caption: `🎵 *${videoTitle}*`,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '▶️ YouTube', url: ytUrl }],
+            [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
+          ],
+        },
+      }, { filename: `${videoTitle}.mp3`, contentType: 'audio/mpeg' });
+      return;
+    } catch (e) {
+      console.log('ytdl xato:', e.message?.slice(0, 100));
     }
 
-    if (mp3Url) {
-      try {
-        await bot.sendAudio(chatId, mp3Url, {
-          title: videoTitle,
-          caption: `🎵 *${videoTitle}*`,
-          parse_mode: 'Markdown',
-        });
-        return;
-      } catch {}
-    }
-
-    // Fallback — link berish
+    // Fallback
     return md(chatId,
-      `🎵 *${videoTitle}*\n\nTo'g'ridan yuklab bo'lmadi. Quyidagi tugmadan yuklab oling:`,
+      `🎵 *${videoTitle}*\n\n⚠️ Audio yuklab bo'lmadi. YouTube dan ko'ring:`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '⬇️ MP3 Yuklab olish', url: `https://ytmp3.cc/youtube-to-mp3/?url=https://youtube.com/watch?v=${videoId}` }],
-            [{ text: '▶️ YouTube', url: `https://youtube.com/watch?v=${videoId}` }],
+            [{ text: '▶️ YouTube da tinglash', url: ytUrl }],
             [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
           ],
         },
