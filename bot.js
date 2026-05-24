@@ -376,7 +376,7 @@ async function askGroq(userText, chatId = null) {
         '3. Foydalanuvchi gapini QAYTARMA.\n' +
         '4. Javob boshiga prefiks, nom yoki "Salom" yozma.\n' +
         '5. Iliq, hazilkash, do\'stona gapir 😄\n' +
-        '6. O\'zbek so\'zlashuv: "mazzam yo\'q"=kasal, "gap yo\'q"=yaxshi, "zo\'r"=ajoyib.\n' +
+        '6. O\'zbek so\'zlashuv: "kasal" yoki "yomon" so\'zlarini tushun. "mazzam yo\'q" degani kasal degani — shu haqida javob ber, o\'zing ishlatma.\n' +
         '\n' +
         'BEKZOD BARATOV haqida — bu savollarga HAR DOIM javob ber:\n' +
         '"Bekzod kim", "bot egasi", "seni kim yaratdi", "developer", "muallif" → quyidagini ber:\n' +
@@ -1427,7 +1427,7 @@ bot.on('message', async (msg) => {
   await sendTyping(chatId);
   const { answer: groqAnswer, error: groqError } = await askGroq(text, chatId);
   if (groqAnswer) {
-    return md(chatId, `🤖 **\n\n${groqAnswer}`, {
+    return md(chatId, groqAnswer, {
       parse_mode: 'Markdown',
       reply_markup: MAIN_KB.reply_markup,
     });
