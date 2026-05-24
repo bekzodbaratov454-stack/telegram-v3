@@ -363,7 +363,7 @@ async function askGroq(userText, chatId = null) {
   console.log('🤖 Groq ga so\'rov yuborilmoqda...');
 
   // Suhbat tarixini olish (oxirgi 6 ta xabar)
-  const history = chatId && userHistory[chatId] ? userHistory[chatId].slice(-6) : [];
+  const history = chatId && userHistory[chatId] ? userHistory[chatId].slice(-20) : [];
 
   const messages = [
     {
@@ -489,11 +489,11 @@ const stats       = { totalMessages: 0, uniqueUsers: new Set(), apiCalls: 0 };
 // Suhbat tarixini xotirada saqlash (fayl ishlatilmaydi)
 let userHistory = {};
 
-// Har 24 soatda barcha tarixni tozalash
+// Har 48 soatda barcha tarixni tozalash
 setInterval(() => {
   userHistory = {};
-  console.log('🧹 Suhbat tarixi tozalandi (24 soat)');
-}, 24 * 60 * 60 * 1000);
+  console.log('🧹 Suhbat tarixi tozalandi (48 soat)');
+}, 48 * 60 * 60 * 1000);
 
 function saveHistory() {} // fayl saqlanmaydi
 
