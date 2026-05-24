@@ -363,7 +363,7 @@ async function askGroq(userText, chatId = null) {
   console.log('🤖 Groq ga so\'rov yuborilmoqda...');
 
   // Suhbat tarixini olish (oxirgi 6 ta xabar)
-  const history = chatId && userHistory[chatId] ? userHistory[chatId].slice(-20) : [];
+  const history = chatId && userHistory[chatId] ? userHistory[chatId].slice(-35) : [];
 
   const messages = [
     {
@@ -434,8 +434,8 @@ async function askGroq(userText, chatId = null) {
             if (!userHistory[chatId]) userHistory[chatId] = [];
             userHistory[chatId].push({ role: 'user', content: userText });
             userHistory[chatId].push({ role: 'assistant', content: trimmed });
-            // 20 ta xabarga yetsa — tozalab 0 dan boshlash
-            if (userHistory[chatId].length >= 20) {
+            // 35 ta xabarga yetsa — tozalab 0 dan boshlash
+            if (userHistory[chatId].length >= 35) {
               userHistory[chatId] = [];
             }
             saveHistory();
