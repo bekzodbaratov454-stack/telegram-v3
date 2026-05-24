@@ -260,8 +260,8 @@ async function getQuote() {
 // ──────────────────────────────────────────────
 const AI_RESPONSES = {
   greetings: [
-    '👋 Salom! Men Bekzod Help Bot v4 — sizga xizmat qilishdan xursandman! Nima yordam kerak? 😊',
-    '👋 Assalomu alaykum! Bugun siz uchun nima qila olaman? 🤖',
+    '👋 Salom! Men Bekzod Help Bot — sizga xizmat qilishdan xursandman! Nima yordam kerak? 😊',
+    '👋 Assalomu alaykum! Bugun siz uchun nima qila olaman? 😄',
     '😊 Salom-salom! Menyudan tanlang yoki to\'g\'ridan-to\'g\'ri savolingizni yozing!',
     '🌟 Salom! Ajoyib kun tilayman! Qanday yordam kerak? ✨',
   ],
@@ -1339,42 +1339,17 @@ bot.on('message', async (msg) => {
     }
 
     const ytUrl = `https://youtube.com/watch?v=${videoId}`;
-    const waitMsg = await md(chatId, `🎵 *${videoTitle}*\n\n⏳ Audio yuklanmoqda...`, { parse_mode: 'Markdown' });
+    const q = encodeURIComponent(videoTitle !== text ? videoTitle : text);
 
-    // ytdl-core orqali audio stream yuborish
-    try {
-      const ytdl = require('@distube/ytdl-core');
-      const info = await ytdl.getInfo(ytUrl);
-      videoTitle = info.videoDetails.title;
-      const audioStream = ytdl(ytUrl, {
-        filter: 'audioonly',
-        quality: 'highestaudio',
-        requestOptions: { headers: { 'User-Agent': 'Mozilla/5.0' } }
-      });
-      await bot.sendAudio(chatId, audioStream, {
-        title: videoTitle,
-        caption: `🎵 *${videoTitle}*`,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '▶️ YouTube', url: ytUrl }],
-            [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
-          ],
-        },
-      }, { filename: `${videoTitle}.mp3`, contentType: 'audio/mpeg' });
-      return;
-    } catch (e) {
-      console.log('ytdl xato:', e.message?.slice(0, 100));
-    }
-
-    // Fallback
     return md(chatId,
-      `🎵 *${videoTitle}*\n\n⚠️ Audio yuklab bo'lmadi. YouTube dan ko'ring:`,
+      `🎵 *${videoTitle}*`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '▶️ YouTube da tinglash', url: ytUrl }],
+            [{ text: '⬇️ MP3 yuklab olish', url: `https://yt1s.com/youtube-to-mp3?q=${q}` }],
+            [{ text: '⬇️ Boshqa converter', url: `https://ytmp3.cc/youtube-to-mp3/?url=${encodeURIComponent(ytUrl)}` }],
+            [{ text: '▶️ YouTube', url: ytUrl }],
             [{ text: '🔄 Boshqa qo\'shiq', callback_data: 'music_again' }],
           ],
         },
