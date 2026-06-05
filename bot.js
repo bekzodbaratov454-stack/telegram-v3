@@ -273,40 +273,103 @@ async function getQuote() {
 // ════════════════════════════════════════════════════
 //  §9. GROQ AI — KUCHAYTIRILGAN
 // ════════════════════════════════════════════════════
-
-const SYSTEM_PROMPT = `Sen Bekzod Baratov ning shaxsiy yordamchi botisan.
+const SYSTEM_PROMPT = `
+Sen Bekzod Baratovning shaxsiy AI yordamchi botisan.
 
 ━━━ BEKZOD HAQIDA ━━━
-• Ism: Bekzod Baratov
-• Yosh: 18 yosh, Toshkentlik
-• Kasb: Full-stack dasturchi (JavaScript, Node.js, React, Python, HTML/CSS)
-• Telegram: @bekzod_stack
-• Loyihalar:
-  - 🌐 CosmoX Portfolio → cosmosx.onrender.com
-  - 🛒 Do'kon Guzor Hozmak → do-kon-guzor-hozmak.vercel.app
-  - 🌍 Country Information → country-information-bekzod-ten.vercel.app
-  - 📲 QR Code Generator → qr-code-bekzod-six.vercel.app
-  - 🍗 KFC UZ Admin Panel → kfc-uz-admin.vercel.app
+- Ism: Bekzod Baratov
+- Yosh: 18, Toshkent
+- Kasb: Full-stack dasturchi (JavaScript, Node.js, React, Python, HTML/CSS)
+- Telegram: @bekzod_stack
+- Kelajak maqsad: Meta (Facebook) kompaniyasida muhandis bo'lib ishlash — chin dildan
+- Qiziqishlar: AI/Telegram botlar, Game dev, kino/serial, voleybol
 
-━━━ SEN KIM ━━━
-• Bekzod ning yordamchi boti — savollarni javoblaysan
-• Foydalanuvchiga do'stona, iliq va aqlli munosabatda bo'l
+━━━ LOYIHALAR ━━━
+- CosmoX Portfolio → cosmosx.onrender.com
+- Do'kon Guzor Hozmak → do-kon-guzor-hozmak.vercel.app
+- Country Info → country-information-bekzod-ten.vercel.app
+- QR Generator → qr-code-bekzod-six.vercel.app
+- KFC UZ Admin → kfc-uz-admin.vercel.app
 
-━━━ QAT'IY QOIDALAR ━━━
-1. Faqat o'zbek tilida javob ber (so'ralmasa ingliz tilida yozma)
-2. Hech qachon "Salom", "Assalomu alaykum", "Xush kelibsiz" bilan BOSHLAB YOZMA
-   (foydalanuvchi salomlashsa, bitta qisqa javob ber — lekin keyin takrorlama)
-3. Javobni to'g'ridan boshlang — keraksiz kirish so'zlari yo'q
-4. 2–5 jumla yoz (murakkab savollarga ko'proq) — aniq va foydali bo'l
-5. Foydalanuvchi yozgan gapni so'zma-so'z qaytarma
-6. Iliq va biroz hazilkash bo'l 😄
-7. "Sen kimsan?" → "Men Bekzod ning yordamchi botiman" de va u haqida ayt
-8. Shaxsiy ma'lumot (manzil, telefon, oila) so'ralsa: "Bu ma'lumotni bera olmayman 😊" de
-9. Kasal bo'lsa maslahat ber
-10. Oldingi suhbatni eslab kontekstga mos javob ber
-11. Dasturlash, matematika, til, tarix — har qanday mavzuda yordam ber
-12. Markdown formatlashdan foydalan: *bold*, _italic_, \`code\``;
+━━━ SEVIMLI KINOLAR VA SERIALLAR ━━━
+- Marvel: Avengers (eng sevimli), Guardians of the Galaxy, Captain America
+  - Sevimli personajlar: Thor (1-chi o'rin), Captain America
+- Game of Thrones — Jon Snow, Tyrion, Jaime Lannister
+- Merlin (Afsungar) — kuchli nostalgiya bergan serial
+- Yoqtirgan janrlar: fantastika, adventure, action, tarixiy/jang
+  - Misol: Troya, Gladiator, Braveheart, 1917, Kingdom of Heaven
+- Texnologiya/thriller: The Social Network, Inception, Interstellar, Matrix
+- Yoqtirmaydi: DC olami (umuman)
 
+━━━ SPORT ━━━
+- Hozir: Voleybol — yaxshi darajada o'ynaydi
+- Ilgari: Futbol (yoshligida faol o'ynagan)
+- Kuzatadi: Formula 1, NBA
+
+━━━ O'QISH VA VAQT ━━━
+- Kunlik dars: ~7 soat (juft kunlari 10+ soat)
+- Mustaqil o'qish: kuniga 3–4 soat
+- Eng produktiv vaqt: Ertalab
+- Haftalik umumiy: ~50+ soat
+
+━━━ IELTS ━━━
+- Maqsad: kamida 6.5 band
+- Holat: yaqin orada topshiradi
+- Ingliz tili: dasturlash va kino orqali mustaqil rivojlantirgan
+
+━━━ ROL ━━━
+Sen Bekzodning shaxsiy AI yordamchisisisan — aqlli, tez, ishonchli.
+Chatbot emassan, yordamchi do'stsan.
+Foydalanuvchiga aniq, qisqa va tushunarli javob berish — asosiy maqsading.
+
+━━━ JAVOB USLUBI ━━━
+- 2–5 gap ichida javob ber; murakkab mavzuda biroz uzunroq bo'lishi mumkin
+- Oddiy, tabiiy, do'stona ohang — rasmiy emas
+- Keraksiz kirish so'zlari yo'q ("Albatta!", "Zo'r savol!", "Keling...")
+- Hazil — o'rinli bo'lsa, bir-ikki so'z, ortiqcha emas
+- Faqat foydali, aniq ma'lumot ber
+
+━━━ TELEGRAM MARKDOWN ━━━
+- *matn* → bold
+- _matn_ → italic
+- \`kod\` → inline kod
+- \`\`\`kod\`\`\` → kod bloki
+- [matn](url) → havola
+
+━━━ QOIDALAR ━━━
+1. Har doim o'zbek tilida javob ber
+2. Ingliz tiliga faqat foydalanuvchi aniq so'rasa o't
+3. Hech qachon ortiqcha salomlashish bilan boshlama
+4. Foydalanuvchi salom bersa — qisqa, tabiiy javob ber
+5. Foydalanuvchi gapini takrorlama
+6. "Sen kimsan?" → "Men Bekzodning shaxsiy AI yordamchisiman 🤖"
+7. Shaxsiy ma'lumotlar haqida:
+   ✅ Berishingmumkin: loyiha linklari, Telegram (@bekzod_stack), kasb, yosh
+   ❌ Berma: yashash manzili, kundalik jadval, qayerda o'qishi,
+      oilaviy ma'lumotlar, moliyaviy holat, do'stlar/tanishlar haqida
+   ⚠️ Ehtiyotkorlik bilan: IELTS rejalari, kunlik vaqt jadvali —
+      faqat maslahat so'ralsa ayt, o'z-o'zidan oshirma
+8. Sog'liq haqida so'ralsa — umumiy tavsiya ber, kerak bo'lsa shifokorga murojaat qilishni ayt
+9. Dasturlash, matematika, til, texnologiya, hayot maslahati — hammasiga yordam ber
+10. "Men sun'iy intellektman, his-tuyg'um yo'q" kabi sovuq iboralar ishlatma
+
+━━━ AQLLI XULQ-ATVOR ━━━
+- Savol tushunarsiz bo'lsa — 1 ta qisqa aniqlashtiruvchi savol ber
+- Foydalanuvchi xato tushunsa — muloyim, to'g'ri tushuntir
+- Savol oddiy bo'lsa — cho'zma, to'g'ri javob ber
+- Kod so'ralsa — ishlaydigan, toza kod yoz, kerak bo'lsa qisqacha izohla
+- Ro'yxat kerak bo'lsa — raqamlangan yoki belgilangan ro'yxat ishlat
+- Bitta savolga qarama-qarshi javob berma
+
+━━━ CHEKLOVLAR ━━━
+- Siyosat, din, millat haqida bahslashma
+- Zararli, noqonuniy ma'lumot berma
+- O'zingni ChatGPT, Gemini yoki boshqa bot deb ko'rsatma
+
+━━━ MUHIM ━━━
+Har doim foydalanuvchiga *real yordam* berishga fokus qil.
+Sen — Bekzodning raqamli yordamchisi. Aqlli, tez, ishonchli.
+`;
 /** Groq AI ga so'rov */
 async function askGroq(userText, chatId = null) {
   if (!CONFIG.GROQ_API_KEY) return { answer: null, error: 'GROQ_API_KEY topilmadi' };
@@ -435,37 +498,183 @@ const TIPS = {
     '😴 Har kecha 7–8 soat uxlang — miya to\'la ishlashi uchun shart.',
     '🥦 Har kuni meva va sabzavot iste\'mol qiling — immunitet uchun.',
     '🧘 Stressni kamaytirish uchun kuniga 10 daqiqa meditatsiya qiling.',
+    '🚶 Lift o\'rniga zinapoyadan foydalaning — kichik odatlar katta o\'zgarish yaratadi.',
+    '🌞 Ertalab quyosh nurida 10–15 daqiqa o\'tiring — D vitamini va kayfiyat uchun.',
+    '🦷 Tishlarni faqat tozalab emas, til va milklarni ham tozalang — butun og\'iz salomatligi muhim.',
+    '🫁 Har kuni 5 daqiqa chuqur nafas mashqi bajaring — qon bosimini pasaytiradi.',
+    '🍽️ Ovqatni sekin va chaynab yeng — hazm yaxshi bo\'ladi, ortiqcha ovqat yemaysiz.',
+    '🚭 Tamaki va alkogoldan uzoq turing — bu ikki narsa umrni qisqartiruvchi birinchi omillar.',
+    '🧂 Tuzni kamaytiring — kunlik norma 5 gramm, ko\'pchilik 10–15 gramm iste\'mol qiladi.',
+    '🫀 Haftada kamida 3 marta 30 daqiqa aerob mashq qiling — yurak sog\'ligi uchun.',
+    '🩺 Yiliga bir marta to\'liq tibbiy tekshiruvdan o\'ting — kasallikni erta aniqlash hayot qutqaradi.',
+    '🛁 Kech tunda issiq dush — tana haroratini pasaytiradi va uyquni chuqurlashtiradi.',
+    '🧃 Suyuqlik faqat suv emas — mevali choy, sho\'rva, ko\'kat ham hisob.',
+    '🏋️ Mushaklar uchun haftada 2 marta kuch mashqi qiling — metabolizmni tezlashtiradi.',
+    '👁️ Har 20 daqiqada ekrandan ko\'z uzib, 20 soniya uzoqqa qarang — ko\'z charchog\'ini kamaytiradi.',
+    '🧬 Ota-onangizda qanday kasalliklar bo\'lganini biling — genetik xavflarni oldindan kamaytirish mumkin.',
+    '🌿 Uyga havorang o\'simlik qo\'ying — havo tozalanadi, ruh ko\'tariladi.',
   ],
+
   productivity: [
     '⏰ Eng muhim vazifani ertalab birinchi bajaring.',
     '📱 Telefonsiz 1 soat ishlash samaradorlikni 40% oshiradi.',
     '📝 Har kecha ertangi kunning rejasini tuzing.',
     '🎯 Bir vaqtda bitta vazifaga e\'tibor qarating — multitasking mif!',
     '⏳ Pomodoro texnikasi: 25 daqiqa ish, 5 daqiqa dam.',
+    '📂 Har ishni boshlamasdan oldin ish joyingizni tartibga soling — tartibsiz muhit — tartibsiz fikr.',
+    '🔕 Bildirishnomalarni o\'chiring — har bir signal e\'tiboringizni 23 daqiqaga buzadi.',
+    '🗑️ "Kerak bo\'lar" degan narsalarni ertaga o\'ching — agar 6 oy ishlatmagan bo\'lsangiz, kerak emas.',
+    '🌅 Tongda 30 daqiqa faqat o\'zingiz uchun ajrating — kun rejasini o\'ylab chiqing.',
+    '📊 Har hafta shunday savol bering: "Bu hafta nima yaxshi bo\'ldi? Nima o\'zgartirishim kerak?"',
+    '🔋 Energiya boshqaruvi vaqt boshqaruvidan muhimroq — zo\'riqsangiz, dam oling.',
+    '✉️ Emailni faqat ikki marta ko\'ring — ertalab va tushdan keyin. Doimiy tekshirish vaqt o\'ldiradi.',
+    '🧩 Katta vazifalarni kichik bo\'laklarga bo\'ling — "loyihani tugatish" emas, "birinchi bo\'limni yozing".',
+    '🚫 "Yo\'q" deb aytishni o\'rganing — hamma narsaga rozi bo\'lish sizni eng muhim ishlardan uzadi.',
+    '🎵 Instrumental musiqa ishlash vaqtida koncentratsiyani oshiradi — so\'zsiz musiqa tanlang.',
+    '📅 Yilik, oylik va haftalik maqsadlaringizni yozma ravishda saqlang — ko\'rinmas maqsad yo\'qoladi.',
+    '💼 Har kuni "uch asosiy natija" aniqlang — kech boshida shularni bajardingizmi, deb so\'rang.',
+    '🔄 Takroriy ishlar uchun shablon yarating — har safar qaytadan ixtiro qilmang.',
+    '🧠 Muhim qarorlarni ertalab qabul qiling — kech bo\'lganda irodangiz charchagan bo\'ladi.',
+    '📵 Uyquga ketishdan 1 soat oldin telefonni yoqmang — bu vaqt kitob yoki fikrlash uchun.',
   ],
+
   learning: [
     '📚 Kitob o\'qish miyani kuchaytiradigan eng yaxshi mashq.',
     '🔄 Yangi narsani o\'rganing va uni birovga tushuntiring — eng yaxshi usul.',
     '✍️ Qo\'lda yozish — yodda saqlash uchun eng samarali usul.',
     '🎧 Podcast tinglash — piyoda yurganda ham o\'rganish mumkin.',
     '🌐 Har kuni 15 daqiqa ingliz tilida video ko\'ring.',
+    '🧪 Nazariyani o\'qish bilan cheklanmang — hoziroq amaliyotda sinab ko\'ring.',
+    '📖 Bitta kitobni boshlamay turib ikkinchisini ochmang — chuqurlik kenglikdan qimmatroq.',
+    '🗂️ O\'qigan narsalaringizni qaydlar sistemasiga saqlang — Notion, Obsidian yoki oddiy daftar.',
+    '🎯 O\'rganish maqsadini aniq qo\'ying: "ingliz tilini o\'rganaman" emas, "3 oyda B2 darajaga chiqaman".',
+    '👨‍🏫 Mentor toping — to\'g\'ri yo\'l ko\'rsatuvchi odam o\'n yilni uch yilga aylantiradi.',
+    '🔁 Spaced repetition (takroriy takrorlash) usulidan foydalaning — Anki ilovasini sinab ko\'ring.',
+    '🎮 Gamifikatsiya qiling — Duolingo, Khan Academy kabi platformalar o\'rganishni o\'yinga aylantiradi.',
+    '🤔 "Feynman texnikasi": tushunmagan narsangizni bola tushunganday sodda tushuntirishga harakat qiling.',
+    '🌍 Tilni o\'rganish uchun tanishlar toping — real suhbat hech qanday darslikdan yaxshiroq.',
+    '📰 Kunlik yangilikni ingliz tilida o\'qing — tilni ham o\'rganasiz, dunyo yangiligidan xabardor ham bo\'lasiz.',
+    '💻 Dasturlashni o\'rganmoqchimisiz? Bitta loyiha qurishni maqsad qiling — tutorial emas.',
+    '🧘 O\'rganishdan oldin 5 daqiqa dam oling — tinch miya yangi ma\'lumotni yaxshiroq qabul qiladi.',
+    '📊 Har hafta o\'zingizni sinab ko\'ring — test qilish yodlashdan ko\'ra ko\'proq narsani yoddartiradi.',
+    '🌱 "O\'sish mentaliteti" — iste\'dod tug\'ma emas, mehnat va mashq bilan rivojlanadi.',
+    '🎤 Notiq bo\'lishni o\'rganing — o\'z fikrini bayon eta olish barcha sohalarda ustunlik beradi.',
   ],
+
   success: [
     '💪 Harakat qilmasdan natija kutma.',
     '🌱 Har kuni 1% yaxshilanish — yil oxirida 37 marta o\'sish!',
     '💡 Xato qilishdan qo\'rqma — bu tajriba.',
     '🤝 Muhim kishilarga vaqt ajrating — ular hammadan qimmat.',
     '⭐ Minnatdorchilik daftari yurit — har kuni 3 ta yaxshilik yoz.',
+    '🏆 Muvaffaqiyat odatlardan iborat — har bir katta natija kichik kundalik harakatlarning yig\'indisi.',
+    '🔥 Ishtiyoqingizni toping — agar ishingizni yaxshi ko\'rsangiz, raqobatchilaringiz tunamaydi, siz tunyasiz.',
+    '🧭 Qadriyatlaringizni aniqlang — kimligingizni bilgan odam nima qilishini biladi.',
+    '📣 O\'zingizni taqdim eta oling — eng yaxshi mahsulot ham reklama bo\'lmasa sotilmaydi.',
+    '🌊 Muvaffaqiyatsizlik — bu oxir emas, istiqomatlilikning imtihoni.',
+    '💰 Daromadingizning 20%ini tejaing — boylik sarflamasdan qolgan puldan, emas ishlagan puldan boshlanadi.',
+    '🤲 Boshqalarga yordam bering — bu dunyo g\'alati: ko\'proq bersangiz, ko\'proq qaytadi.',
+    '🔗 Tarmoq (network) quring — bilim va pul yashaydi, ammo to\'g\'ri odamlar bilan aloqa o\'zgartirilmas kuch.',
+    '📌 Maqsadlaringizni ko\'rinadigan joyga yozing — ko\'z o\'ngida bo\'lgan narsa ongda qoladi.',
+    '🎭 Muammolarni muammo sifatida emas, vazifa sifatida ko\'ring — bu kichik o\'zgarish katta farq yaratadi.',
+    '🕰️ Vaqtni narxlang — "bepul" o\'tkazilgan har bir soat aslida narxli.',
+    '🧱 Disiplin erkinlikdan kuchli — o\'zingizni boshqara olgan odam hamma narsani boshqara oladi.',
+    '🌟 Taqqoslashni bas qiling — siz o\'zingizning yillar avvalgi versiyangiz bilan raqobatdashingsiz.',
+    '📢 Yutuqlaringizni nishonlang — kichik g\'alabalar ham e\'tirofga loyiq, bu davom etish kuchini beradi.',
+    '🚀 Hozir boshlang — "tayyor bo\'lgandan keyin" degan kun hech qachon kelmaydi.',
+  ],
+
+  mindset: [
+    '🧠 Fikrlaringiz taqdiringsizdir — salbiy fikrni e\'tirof eting, lekin unga ishonmang.',
+    '☀️ Har ertalab o\'zingizga: "Bugun ajoyib kun bo\'ladi" — deng va bunga ishoning.',
+    '🪞 O\'zingizga shafqatli bo\'ling — o\'zingizni eng yaqin do\'stingizga muomala qilganday muomala qiling.',
+    '🌈 Optimizm — bu soddagarlik emas, kelajakka ishonchli tayyorgarlik.',
+    '🎋 Qattiq daraxt shamolda sinadi, moslashuvchan qamish esa egilib saqlanadi — hayotda ham shunday.',
+    '🔍 Muammo ichida imkoniyat qidiring — ikki kishi bir xil vaziyatda turli narsani ko\'radi.',
+    '🫂 Yolg\'izlik va yolg\'iz qolish farqlari bor — birinchisi og\'riq, ikkinchisi kuch manbai.',
+    '💭 O\'z ichki dialogingizga e\'tibor bering — o\'zingiz o\'zingizga qanday gapiraysiz?',
+    '🌓 Qarama-qarshiliklarni qabul qiling — hayot ikki rangli emas, minglab tusli.',
+    '🏔️ Cho\'qqi muhim emas, yo\'l muhim — jarayon natijadan ko\'ra ko\'proq narsa o\'rgatadi.',
+    '🔓 Qo\'rquvga qaramay harakat qiling — jasorat qo\'rqmaslik emas, qo\'rqib ham oldinga yurish.',
+    '🌺 Hozirgi lahzada yashang — o\'tmish o\'tdi, kelajak kelmadi, faqat "hozir" mavjud.',
+    '🧩 Barcha his-tuyg\'ular ma\'lumot — g\'azab, qayg\'u, qo\'rquv — hammasi sizga biror narsa aytmoqchi.',
+    '🕊️ Kechirish — bu boshqa kishi uchun emas, o\'zingiz uchun. Kinani tashlab, ozod bo\'ling.',
+    '📡 E\'tiboringiz — bu hayotingizning yo\'nalishi. Nimaga qarasangiz, shu tomonga o\'sasiz.',
+  ],
+
+  relationships: [
+    '👂 Tinglovchi bo\'ling — odamlar so\'zlashuvchi emas, haqiqiy tinglovchini izlashadi.',
+    '💌 Yaqinlaringizga "seni sevinchim uchun sevaman" emas, "senga shunchaki qo\'ng\'iroq qildim" deya murojaat qiling.',
+    '🤜 Do\'stlikni saqlab turish uchun ham aktiv harakat kerak — munosabatlar o\'z-o\'zidan o\'smaydi.',
+    '🎁 Sovg\'a buyum bo\'lmasin — vaqt, e\'tibor, yordam — bular haqiqiy sovg\'a.',
+    '🚦 Munosabatlardagi qizil bayroqlarni e\'tiborsiz qoldirmang — kichik muammolar katta kasalliklarga aylanadi.',
+    '🗣️ Nizolarda "sen doim…" emas, "men … his qilyapman" deb gapiring — ayblov emas, tuyg\'u ifodalash.',
+    '🌉 Ko\'prik qurishni bilgan odam devor qurishni bilgandan ko\'ra uzoqqa boradi.',
+    '💑 Romntik munosabatda ham do\'stlik asosi bo\'lishi kerak — ehtiroslar so\'nadi, do\'stlik qoladi.',
+    '👨‍👩‍👧 Oilaga vaqt ajrating — karyera muvaffaqiyati yolg\'iz kechgan kecha bilan to\'lanmaydi.',
+    '🌐 Turli yoshdagi, turli sohadagi odamlar bilan muloqot qiling — perspektiva kengayadi.',
+  ],
+
+  finance: [
+    '💵 Daromad olmagan narsaga qarz olmang — qarz yashash uchun emas, investitsiya uchun.',
+    '📈 Foiz bilan ishlaydigan investitsiyani erta boshlang — vaqt sizning eng kuchli ittifoqchingiz.',
+    '🏦 Favqulodda fond yarating — kamida 3–6 oylik xarajatlarni tejab qo\'ying.',
+    '🧾 Har oylik xarajatlaringizni kategoriyalarga bo\'ling — nima uchun pul ketishini bilmasangiz, boshqara olmaysiz.',
+    '🛒 Xariddan oldin 24 soat kuting — impulsiv xaridlarning 80% bu vaqtda o\'z-o\'zidan bekor bo\'ladi.',
+    '📉 Inflyatsiya pul qadrini yildan-yilga pasaytiradi — naqd pul emas, aktiv saqlang.',
+    '💡 Daromad manbalarini ko\'paytiring — bir manbali daromad zaif, uch manbali daromad barqaror.',
+    '🎓 O\'zingizga investitsiya qiling — ko\'nikmaga qilingan xarajat bir umr qaytadi.',
+    '🔄 Avtomatik tejashni o\'rnating — maosh tushganda avtomatik ravishda tejarlik hisobga o\'tsin.',
+    '📊 Soliq, sug\'urta va pensiya haqida o\'rganing — bu bilimlar ming dollarlab pul tejatadi.',
+  ],
+
+  habits: [
+    '🌄 Ertalabki muhim odatlarni birinchi yarim soatga joylashtiring — iroda kechqurun tugaydi.',
+    '🔗 Yangi odatni mavjud odatga "bog\'lang" — "Qahva ichgandan keyin 5 daqiqa kitob o\'qiyman".',
+    '📏 Odat kichikroq bo\'lsa, boshlash osonroq — 2 daqiqalik versiyadan boshlang.',
+    '🗓️ 21 kun mif — odat o\'rnatish o\'rtacha 66 kun oladi. Sabrli bo\'ling.',
+    '📓 Odat kuzatgich yurit — ko\'rish va belgilash motivatsiyani kuchaytiradi.',
+    '🔁 Odat buzilsa, keyingi kuni qaytib boshlang — ikki kun ketma-ket o\'tkazib yubormaslik qoidasi.',
+    '🌙 Kechki routine yarating — ertangi kun ertalab emas, kecha boshlanadi.',
+    '🏆 Kichik g\'alabalarni nishonlang — miya mukofot ko\'rsa, odatni mustahkamlaydi.',
+    '🌀 Yomon odatni yo\'qotmoqchisiz? Uni boshqa narsa bilan almashtiring — bo\'shliqni to\'ldirmagan odat qaytadi.',
+    '⚡ Muhit dizaynlang — yaxshi odatni oson, yomon odatni qiyin qiling (masalan, telefonni boshqa xonaga qo\'ying).',
   ],
 };
 
-const TIP_EMOJI = { health: '🏃 Sog\'liq', productivity: '⚡ Samaradorlik', learning: '📚 O\'rganish', success: '🌟 Muvaffaqiyat' };
+const TIP_EMOJI = { health: '🏃 Sog\'liq', productivity: '⚡ Samaradorlik', learning: '📚 O\'rganish', success: '🌟 Muvaffaqiyat' , mindset: '🧠 Tafakkur' , relationships: '👥 Munosabat' , finance: '💸 Daromad' , habits: '🗓️ Odatlar'};
+
+let lastTip = null;
+let usedTips = [];
+let startTime = Date.now();
 
 function getRandomTip(category = null) {
+  const ONE_HOUR = 60 * 60 * 1000;
+
+  // 1 soat o‘tsa reset qilamiz
+  if (Date.now() - startTime > ONE_HOUR) {
+    usedTips = [];
+    lastTip = null;
+    startTime = Date.now();
+  }
+
   const cats = Object.keys(TIPS);
-  const cat  = (category && TIPS[category]) ? category : cats[Math.floor(Math.random() * cats.length)];
+  const cat = (category && TIPS[category])
+    ? category
+    : cats[Math.floor(Math.random() * cats.length)];
+
   const tips = TIPS[cat];
-  return `${TIP_EMOJI[cat]} *Maslahat:*\n\n${tips[Math.floor(Math.random() * tips.length)]}`;
+
+  let tip;
+
+  do {
+    tip = tips[Math.floor(Math.random() * tips.length)];
+  } while ((tip === lastTip || usedTips.includes(tip)) && tips.length > 1);
+
+  lastTip = tip;
+  usedTips.push(tip);
+
+  return `${TIP_EMOJI[cat]} *Maslahat:*\n\n${tip}`;
 }
 
 // ════════════════════════════════════════════════════
@@ -746,6 +955,8 @@ bot.onText(/\/tip/, (msg) => {
       inline_keyboard: [
         [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
         [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
+        [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
+        [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
       ],
     },
   });
@@ -1139,8 +1350,8 @@ bot.on('message', async (msg) => {
     });
   }
 
-  if (/Python|🐍/.test(text)) {
-    return md(chatId, '🐍 *Python O\'rganish Resurslari*', {
+  if (/Dasturlash va Python|🐍/.test(text)) {
+    return md(chatId, '🐍 *Dasturlash O\'rganish Resurslari*', {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -1201,6 +1412,9 @@ bot.on('message', async (msg) => {
         inline_keyboard: [
           [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
           [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
+          [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
+          [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
+
         ],
         ...MAIN_KB.reply_markup,
       },
@@ -1468,8 +1682,10 @@ bot.on('callback_query', async (query) => {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
-          [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
+            [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
+            [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
+            [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
+            [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
         ],
         ...MAIN_KB.reply_markup,
       },
