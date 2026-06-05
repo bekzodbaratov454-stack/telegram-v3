@@ -31,7 +31,7 @@ const CONFIG = {
   ADMIN_ID:     parseInt(process.env.ADMIN_ID) || 7376786974,
   PORT:         process.env.PORT || 3000,
   GROQ_API_KEY: process.env.GROQ_API_KEY,
-  GROQ_MODEL:   'llama-3.3-70b-versatile',   // tez va kuchli model
+  GROQ_MODEL:   'llama-3.1-8b-instant',   // tez va kuchli model
   GROQ_TIMEOUT: 20000,                        // 20s timeout
   API_TIMEOUT:  8000,                         // tashqi API timeout
   HISTORY_MAX:  20,                           // xabar tarixi chegarasi
