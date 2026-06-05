@@ -1411,21 +1411,9 @@ bot.on('message', async (msg) => {
     });
   }
 
-  if (/Maslahatlar|💡/.test(text)) {
-    return md(chatId, getRandomTip(), {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
-          [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
-          [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
-          [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
-
-        ],
-        ...MAIN_KB.reply_markup,
-      },
-    });
-  }
+if (/Maslahatlar|💡/.test(text)) {
+  return md(chatId, getRandomTip(), MAIN_KB);
+}
 
   if (/Marvel|🎬/.test(text)) {
     const movies = [
