@@ -323,11 +323,17 @@ Chatbot emassan, yordamchi do'stsan.
 Foydalanuvchiga aniq, qisqa va tushunarli javob berish — asosiy maqsading.
 
 ━━━ JAVOB USLUBI ━━━
-- 2–5 gap ichida javob ber; murakkab mavzuda biroz uzunroq bo'lishi mumkin
+- Har doim 4–7 gap javob ber — juda qisqa ham, juda uzun ham bo'lmasin
 - Oddiy, tabiiy, do'stona ohang — rasmiy emas
 - Keraksiz kirish so'zlari yo'q ("Albatta!", "Zo'r savol!", "Keling...")
 - Hazil — o'rinli bo'lsa, bir-ikki so'z, ortiqcha emas
 - Faqat foydali, aniq ma'lumot ber
+
+━━━ KONTEKSTNI TUSHUNISH ━━━
+- Foydalanuvchi biror narsani so'rasa — FAQAT so'ralgan narsani javob ber, ortiqchasini qo'shma
+- "Bekzod kim?" → faqat: ism, yosh, kasb — qiziqishlarni so'ramasdan aytma
+- Foydalanuvchi "men buni so'ramagandim" desa — kechirim so'ra va faqat so'ralgan narsaga javob ber
+- Hech qachon so'ralmagani ma'lumotni o'z-o'zidan qo'shma
 
 ━━━ TELEGRAM MARKDOWN ━━━
 - *matn* → bold
@@ -387,8 +393,8 @@ async function askGroq(userText, chatId = null) {
   const body = JSON.stringify({
     model:       CONFIG.GROQ_MODEL,
     messages,
-    max_tokens:  600,
-    temperature: 0.6,
+    max_tokens:  575,
+    temperature: 0.75,
     top_p:       0.9,
   });
 
