@@ -830,7 +830,7 @@ setInterval(() => {
 const MAIN_KB = {
   reply_markup: {
     keyboard: [
-      [{ text: '📁 Loyihalarim' },        { text: '📚 IELTS So\'zlar' }],
+      [{ text: '📁 Loyihalarim' },        { text: '📚 IELTS BAZA' }],
       [{ text: '🐍 Python Darslar' },     { text: '🧮 Matematika' }],
       [{ text: '🌟 Qiziqarli Faktlar' },  { text: '💡 Hayotiy Maslahatlar' }],
       [{ text: '🎬 Marvel Kinolar' },     { text: '🎮 O\'yinlar' }],
