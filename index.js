@@ -1,14 +1,17 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- *   BEKZOD HELP BOT  v5.0  —  Node.js + Express
+ *   BEKZOD HELP BOT  v5.1  —  Node.js + Express
  *   Muallif: Bekzod Baratov  |  @bekzod_stack
- *   v5.0 yangiliklari:
- *    - AI tizimi to'liq qayta yozildi (salomlashish muammosi hal)
- *    - Tezlashtirilgan API so'rovlar + timeout himoyasi
- *    - Parallel fakt yuklash (bot to'xtab qolmaydi)
- *    - Kuchaytirilgan Groq system prompt
- *    - Tartibli modulli kod strukturasi
- *    - Xatoliklarni ushlash yaxshilandi
+ *   v5.1 yangiliklari:
+ *    - Multi-key Groq tizimi (random load balancing)
+ *    - Groq xatosida avtomatik boshqa keyga o'tish (fallback)
+ *    - Rate limit xatosi aniqlash va keyni skip qilish
+ *    - /ping buyrug'i qo'shildi
+ *    - Foydalanuvchi tarixi samarali boshqarildi
+ *    - Maslahat kategoriyasi inline tugmalar yaxshilandi
+ *    - Barcha console.log lari tartibga solindi
+ *    - Python + Matematika menu matni tuzatildi
+ *    - Xato xabarlar yaxshilandi (Groq fallback)
  * ╚══════════════════════════════════════════════════════════════╝
  */
 
@@ -30,19 +33,21 @@ const CONFIG = {
   TOKEN:        process.env.TOKEN,
   ADMIN_ID:     parseInt(process.env.ADMIN_ID) || 7376786974,
   PORT:         process.env.PORT || 3000,
-  GROQ_API_KEY: process.env.GROQ_API_KEY,
-  GROQ_MODEL:   'llama-3.1-8b-instant',   // tez va kuchli model
-  GROQ_TIMEOUT: 20000,                        // 20s timeout
-  API_TIMEOUT:  8000,                         // tashqi API timeout
-  HISTORY_MAX:  20,                           // xabar tarixi chegarasi
-  HISTORY_TTL:  24 * 60 * 60 * 1000,         // 24 soat (ms)
+  GROQ_KEYS: [
+    process.env.GROQ_API_KEY_1,
+    process.env.GROQ_API_KEY_2,
+  ].filter(Boolean),
+  GROQ_MODEL:   'llama-3.3-70b-versatile',
+  GROQ_TIMEOUT: 20000,
+  API_TIMEOUT:  8000,
+  HISTORY_MAX:  20,
+  HISTORY_TTL:  24 * 60 * 60 * 1000,
 };
 
 // ════════════════════════════════════════════════════
 //  §2. HTTP YORDAMCHI FUNKSIYALAR
 // ════════════════════════════════════════════════════
 
-/** JSON qaytaruvchi GET so'rov */
 function fetchJSON(url, timeoutMs = CONFIG.API_TIMEOUT) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
@@ -59,7 +64,6 @@ function fetchJSON(url, timeoutMs = CONFIG.API_TIMEOUT) {
   });
 }
 
-/** Matn qaytaruvchi GET so'rov */
 function fetchText(url, timeoutMs = CONFIG.API_TIMEOUT) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
@@ -73,7 +77,6 @@ function fetchText(url, timeoutMs = CONFIG.API_TIMEOUT) {
   });
 }
 
-/** Xatolik yuqolmasin — null qaytaradi */
 async function safeFetch(fn, fallback = null) {
   try { return await fn(); }
   catch { return fallback; }
@@ -147,7 +150,6 @@ const FACTS_STATIC = [
   '🐬 Delfinlar bir-birini ism bilan chaqiradi — o\'ziga xos tovush bilan.',
 ];
 
-/** API dan fakt olish — parallel urinish, birinchi muvaffaqiyatli qaytariladi */
 async function getFactFromAPI() {
   const engines = [
     async () => {
@@ -168,27 +170,22 @@ async function getFactFromAPI() {
     },
   ];
 
-  // Tasodifiy tartibda, timeout bilan urinish
   const shuffled = [...engines].sort(() => Math.random() - 0.5);
   for (const fn of shuffled) {
     const result = await safeFetch(fn);
     if (result) return result;
   }
 
-  // Statik fallback
   const t = FACTS_STATIC[Math.floor(Math.random() * FACTS_STATIC.length)];
   return { text: t, emoji: '🌟', source: 'local' };
 }
 
-/** Fakt + tarjima (parallel) */
 async function getFactWithTranslation() {
   const { text, emoji, source } = await getFactFromAPI();
   let uz = null;
-
   if (source !== 'local' && /[a-zA-Z]{3,}/.test(text)) {
     uz = await safeFetch(() => translateToUz(text));
   }
-
   return { en: text, uz, emoji, source };
 }
 
@@ -271,8 +268,9 @@ async function getQuote() {
 }
 
 // ════════════════════════════════════════════════════
-//  §9. GROQ AI — KUCHAYTIRILGAN
+//  §9. GROQ AI — MULTI-KEY + FALLBACK
 // ════════════════════════════════════════════════════
+
 const SYSTEM_PROMPT = `
 Sen Bekzod Baratovning shaxsiy AI yordamchi botisan.
 
@@ -281,6 +279,7 @@ Sen Bekzod Baratovning shaxsiy AI yordamchi botisan.
 - Yosh: 18, Toshkent
 - Kasb: Full-stack dasturchi (JavaScript, Node.js, React, Python, HTML/CSS)
 - Telegram: @bekzod_stack
+- Telegram kanali: https://t.me/bekzodfoundation
 - Kelajak maqsad: Meta (Facebook) kompaniyasida muhandis bo'lib ishlash — chin dildan
 - Qiziqishlar: AI/Telegram botlar, Game dev, kino/serial, voleybol
 
@@ -376,9 +375,10 @@ Foydalanuvchiga aniq, qisqa va tushunarli javob berish — asosiy maqsading.
 Har doim foydalanuvchiga *real yordam* berishga fokus qil.
 Sen — Bekzodning raqamli yordamchisi. Aqlli, tez, ishonchli.
 `;
-/** Groq AI ga so'rov */
+
+/** Groq AI ga so'rov — multi-key + avtomatik fallback */
 async function askGroq(userText, chatId = null) {
-  if (!CONFIG.GROQ_API_KEY) return { answer: null, error: 'GROQ_API_KEY topilmadi' };
+  if (!CONFIG.GROQ_KEYS.length) return { answer: null, error: 'GROQ_API_KEY topilmadi' };
 
   const history = chatId && userHistory[chatId]
     ? userHistory[chatId].slice(-CONFIG.HISTORY_MAX)
@@ -398,6 +398,30 @@ async function askGroq(userText, chatId = null) {
     top_p:       0.9,
   });
 
+  // Tasodifiy tartibda keylarni sinab ko'ramiz (load balancing + fallback)
+  const shuffledKeys = [...CONFIG.GROQ_KEYS].sort(() => Math.random() - 0.5);
+
+  for (const apiKey of shuffledKeys) {
+    const result = await tryGroqKey(apiKey, body, userText, chatId);
+    if (result.answer) return result;
+
+    // Rate limit bo'lsa keyingi keyga o'tish
+    if (result.skipToNext) {
+      console.warn(`⚠️ Key ...${apiKey.slice(-6)} skip — boshqa keyga o'tish`);
+      continue;
+    }
+
+    // Boshqa xatolarda ham keyingi keyni sinab ko'ramiz
+    if (result.error) {
+      console.warn(`⚠️ Key ...${apiKey.slice(-6)} xato: ${result.error.slice(0, 60)}`);
+      continue;
+    }
+  }
+
+  return { answer: null, error: 'Barcha keylar ishlamadi' };
+}
+
+function tryGroqKey(apiKey, body, userText, chatId) {
   return new Promise((resolve) => {
     const options = {
       hostname: 'api.groq.com',
@@ -405,7 +429,7 @@ async function askGroq(userText, chatId = null) {
       method:   'POST',
       headers: {
         'Content-Type':   'application/json',
-        'Authorization':  `Bearer ${CONFIG.GROQ_API_KEY}`,
+        'Authorization':  `Bearer ${apiKey}`,
         'Content-Length': Buffer.byteLength(body),
       },
       timeout: CONFIG.GROQ_TIMEOUT,
@@ -418,46 +442,63 @@ async function askGroq(userText, chatId = null) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
+
+          // Rate limit xatosi — keyingi keyga o'tish
+          if (json?.error?.code === 'rate_limit_exceeded' ||
+              res.statusCode === 429) {
+            return resolve({ answer: null, error: 'rate_limit', skipToNext: true });
+          }
+
           if (json?.error) {
             const msg = json.error.message || JSON.stringify(json.error);
-            console.error('❌ Groq xato:', msg.slice(0, 120));
-            return resolve({ answer: null, error: msg.slice(0, 100) });
+            console.error(`❌ Groq xato (${apiKey.slice(-6)}):`, msg.slice(0, 100));
+            return resolve({ answer: null, error: msg.slice(0, 100), skipToNext: true });
           }
-          const raw = json?.choices?.[0]?.message?.content || null;
+
+          const raw    = json?.choices?.[0]?.message?.content || null;
           const answer = raw ? raw.trim() : null;
-          console.log('✅ Groq:', answer ? answer.slice(0, 80) : 'bo\'sh');
+
+          if (!answer || answer.length < 2) {
+            return resolve({ answer: null, error: 'Bo\'sh javob' });
+          }
+
+          console.log(`✅ Groq (key ...${apiKey.slice(-6)}):`, answer.slice(0, 80));
 
           // Tarixga qo'shish
-          if (answer && chatId) {
+          if (chatId) {
             if (!userHistory[chatId]) userHistory[chatId] = [];
             userHistory[chatId].push({ role: 'user',      content: userText });
             userHistory[chatId].push({ role: 'assistant', content: answer  });
-            // Haddan oshsa — eski xabarlarni o'chir (oxirgi N tasini saqlash)
             if (userHistory[chatId].length > CONFIG.HISTORY_MAX * 2) {
               userHistory[chatId] = userHistory[chatId].slice(-CONFIG.HISTORY_MAX);
             }
           }
 
-          resolve({ answer: answer?.length > 2 ? answer : null, error: null });
+          resolve({ answer, error: null });
         } catch (e) {
           console.error('❌ Groq parse xato:', e.message);
-          resolve({ answer: null, error: `Parse xato` });
+          resolve({ answer: null, error: 'Parse xato', skipToNext: true });
         }
       });
     });
 
-    req.on('error', (e) => { console.error('❌ Groq ulanish:', e.message); resolve({ answer: null, error: e.message }); });
-    req.on('timeout', () => { req.destroy(); resolve({ answer: null, error: 'Timeout (20s)' }); });
+    req.on('error', (e) => {
+      console.error(`❌ Groq ulanish (${apiKey.slice(-6)}):`, e.message);
+      resolve({ answer: null, error: e.message, skipToNext: true });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      resolve({ answer: null, error: 'Timeout (20s)', skipToNext: true });
+    });
     req.write(body);
     req.end();
   });
 }
 
 // ════════════════════════════════════════════════════
-//  §10. MAHALLIY AI (tez javoblar — API kerak emas)
+//  §10. MAHALLIY AI (tez javoblar)
 // ════════════════════════════════════════════════════
 
-/** Faqat sof salomlashish/xayrlashish/rahmat uchun tez javoblar */
 const QUICK_RESPONSES = {
   greetings: [
     'Yaxshi, nima yordam kerak? 😊',
@@ -648,7 +689,13 @@ const TIPS = {
   ],
 };
 
-const TIP_EMOJI = { health: '🏃 Sog\'liq', productivity: '⚡ Samaradorlik', learning: '📚 O\'rganish', success: '🌟 Muvaffaqiyat' , mindset: '🧠 Tafakkur' , relationships: '👥 Munosabat' , finance: '💸 Daromad' , habits: '🗓️ Odatlar'};
+
+
+const TIP_EMOJI = {
+  health: '🏃 Sog\'liq', productivity: '⚡ Samaradorlik', learning: '📚 O\'rganish',
+  success: '🌟 Muvaffaqiyat', mindset: '🧠 Tafakkur', relationships: '👥 Munosabat',
+  finance: '💸 Moliya', habits: '🗓️ Odatlar',
+};
 
 let lastTip = null;
 let usedTips = [];
@@ -656,32 +703,31 @@ let startTime = Date.now();
 
 function getRandomTip(category = null) {
   const ONE_HOUR = 60 * 60 * 1000;
-
-  // 1 soat o‘tsa reset qilamiz
   if (Date.now() - startTime > ONE_HOUR) {
     usedTips = [];
-    lastTip = null;
+    lastTip  = null;
     startTime = Date.now();
   }
-
   const cats = Object.keys(TIPS);
-  const cat = (category && TIPS[category])
-    ? category
-    : cats[Math.floor(Math.random() * cats.length)];
-
+  const cat  = (category && TIPS[category]) ? category : cats[Math.floor(Math.random() * cats.length)];
   const tips = TIPS[cat];
-
   let tip;
-
   do {
     tip = tips[Math.floor(Math.random() * tips.length)];
   } while ((tip === lastTip || usedTips.includes(tip)) && tips.length > 1);
-
   lastTip = tip;
   usedTips.push(tip);
-
   return `${TIP_EMOJI[cat]} *Maslahat:*\n\n${tip}`;
 }
+
+const TIP_INLINE_KB = {
+  inline_keyboard: [
+    [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
+    [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
+    [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
+    [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
+  ],
+};
 
 // ════════════════════════════════════════════════════
 //  §12. VIKTORINA
@@ -720,7 +766,6 @@ function calcBMI(weight, height) {
   else if (bmi < 25)   { cat = '✅ Normal (Healthy)';                      advice = '• Sog\'lom ovqatlanishni davom ettiring\n• Muntazam sport qiling\n• Zo\'r ishlapsiz! 💪'; }
   else if (bmi < 30)   { cat = '⚠️ Ortiqcha vazn (Overweight)';           advice = '• Qand va yog\'li ovqatni kamaytiring\n• Kuniga 30 daqiqa yuring\n• Ko\'proq suv iching'; }
   else                 { cat = '❌ Semizlik (Obese)';                       advice = '• Shifokor bilan zudlik bilan maslahatlashing\n• Parhez tutishni boshlang\n• Muntazam jismoniy faoliyat'; }
-
   return `📊 *BMI Natija*\n\n⚖️ Vazn: *${weight} kg*\n📏 Bo'y: *${height} sm*\nBMI: *${bmi}*\n\nHolat: ${cat}\n\n💡 *Maslahat:*\n${advice}`;
 }
 
@@ -748,6 +793,8 @@ const PDFS = {
   vocab:    { file: path.join(PDF_DIR, 'ielts_vocabulary.pdf'),  caption: '📚 *IELTS Vocabulary* — Sinonimlar va tarjimalar (Adjectives, Verbs, Nouns)' },
   grammar:  { file: path.join(PDF_DIR, 'grammar_guide.pdf'),     caption: '📖 *Grammar Guide* — If Conditions (0–3+Mix) • Modals • Being+V3' },
   speaking: { file: path.join(PDF_DIR, 'speaking_phrases.pdf'),  caption: '🎤 *IELTS Speaking* — Band 7–9 iboralar, esda qolarli jumlalar' },
+  conditions: {file: path.join(PDF_DIR, 'conditions_grammar-1.pdf'), caption: 'Conditions tuliq osson kursatmalar(only conditions)' },
+  tenses: {file: path.join(PDF_DIR, 'English_Tenses_and_Passive_Voice_Guide.pdf') , caption: 'Barcha eng kerakli zamonlar' },
 };
 
 // ════════════════════════════════════════════════════
@@ -768,10 +815,9 @@ app.use(express.json());
 
 const userState   = {};
 const ratings     = {};
-const stats       = { messages: 0, users: new Set(), apiCalls: 0 };
+const stats       = { messages: 0, users: new Set(), apiCalls: 0, groqCalls: 0 };
 let   userHistory = {};
 
-// Har 24 soatda tarixi tozalash
 setInterval(() => {
   userHistory = {};
   console.log('🧹 Suhbat tarixi tozalandi (24h)');
@@ -808,9 +854,8 @@ const NO_KB = { reply_markup: { remove_keyboard: true } };
 
 function md(chatId, text, extra = {}) {
   return bot.sendMessage(chatId, text, { parse_mode: 'Markdown', ...extra }).catch(e => {
-    // Markdown parse xatosi bo'lsa oddiy matn yuboramiz
     if (e.code === 'ETELEGRAM') {
-      return bot.sendMessage(chatId, text.replace(/[*_`]/g, ''), extra).catch(() => {});
+      return bot.sendMessage(chatId, text.replace(/[*_`[\]()]/g, ''), extra).catch(() => {});
     }
   });
 }
@@ -830,7 +875,7 @@ function sendPDF(chatId, key) {
 }
 
 // ════════════════════════════════════════════════════
-//  §19. /start VA /help
+//  §19. /start, /help, /ping
 // ════════════════════════════════════════════════════
 
 bot.onText(/\/start/, (msg) => {
@@ -839,7 +884,7 @@ bot.onText(/\/start/, (msg) => {
   stats.users.add(msg.from.id);
   md(msg.chat.id,
     `🤖 *Assalomu alaykum, ${name}!*\n\n` +
-    `Men *Bekzod Help Bot v5.0* — sizga yordam berish uchun yaratilganman!\n\n` +
+    `Men *Bekzod Help Bot v5.1* — sizga yordam berish uchun yaratilganman!\n\n` +
     `👨‍💻 *Yaratuvchi:* Bekzod Baratov (@bekzod_stack)\n\n` +
     `⚡ *Imkoniyatlar:*\n` +
     `• 🤖 Kuchaytirilgan AI suhbat (har qanday savol)\n` +
@@ -859,6 +904,7 @@ bot.onText(/\/help/, (msg) => {
   md(msg.chat.id,
     `📋 *Buyruqlar:*\n\n` +
     `/start — Botni qayta ishga tushirish\n` +
+    `/ping — Bot ishlayaptimi tekshirish\n` +
     `/fact — Tasodifiy fakt\n` +
     `/joke — Hazil\n` +
     `/quote — Motivatsiya iqtibosi\n` +
@@ -872,17 +918,30 @@ bot.onText(/\/help/, (msg) => {
   );
 });
 
+// YANGI: /ping — bot ishlayaptimi tekshirish
+bot.onText(/\/ping/, (msg) => {
+  const uptime = process.uptime();
+  const h = Math.floor(uptime / 3600);
+  const m = Math.floor((uptime % 3600) / 60);
+  const s = Math.floor(uptime % 60);
+  md(msg.chat.id,
+    `🏓 *Pong!*\n\n` +
+    `✅ Bot ishlayapti\n` +
+    `⏱ Uptime: *${h}s ${m}d ${s}s*\n` +
+    `🔑 GROQ keys: *${CONFIG.GROQ_KEYS.length} ta*\n` +
+    `🤖 Model: \`${CONFIG.GROQ_MODEL.trim()}\``,
+    MAIN_KB
+  );
+});
+
 // ════════════════════════════════════════════════════
 //  §20. SLASH BUYRUQLARI
 // ════════════════════════════════════════════════════
 
 bot.onText(/\/fact/, async (msg) => {
   await typing(msg.chat.id);
-  // Bot to'xtab qolmasligi uchun timeout bilan parallel yuklash
   const timeoutPromise = new Promise(res => setTimeout(() => res(null), 7000));
-  const factPromise = getFactWithTranslation();
-  const result = await Promise.race([factPromise, timeoutPromise]);
-
+  const result = await Promise.race([getFactWithTranslation(), timeoutPromise]);
   stats.apiCalls++;
   if (!result) {
     const t = FACTS_STATIC[Math.floor(Math.random() * FACTS_STATIC.length)];
@@ -891,7 +950,6 @@ bot.onText(/\/fact/, async (msg) => {
       reply_markup: { inline_keyboard: [[{ text: '🔄 Yana bir fakt', callback_data: 'fact_api' }]] },
     });
   }
-
   const { en, uz, emoji, source } = result;
   const sourceLabel = source !== 'local' ? `\n\n_Manba: ${source}_` : '';
   const text = uz
@@ -937,10 +995,10 @@ bot.onText(/\/weather (.+)/, async (msg, match) => {
 
 bot.onText(/\/currency (.+)/, async (msg, match) => {
   await typing(msg.chat.id);
-  const parts = match[1].toUpperCase().split(/\s+/);
+  const parts  = match[1].toUpperCase().split(/\s+/);
   const [from = 'USD', to = 'UZS'] = parts;
   const amount = parseFloat(parts[2]) || 1;
-  const res = await getCurrency(from, to, amount);
+  const res    = await getCurrency(from, to, amount);
   stats.apiCalls++;
   if (!res) return md(msg.chat.id, '❌ Valyuta topilmadi. Misol: `/currency USD UZS 100`', MAIN_KB);
   md(msg.chat.id,
@@ -957,14 +1015,7 @@ bot.onText(/\/bmi/, (msg) => {
 bot.onText(/\/tip/, (msg) => {
   md(msg.chat.id, getRandomTip(), {
     parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
-        [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
-        [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
-        [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
-      ],
-    },
+    reply_markup: TIP_INLINE_KB,
   });
 });
 
@@ -996,7 +1047,7 @@ function startQuiz(chatId) {
 function sendQuizQuestion(chatId) {
   const st = userState[chatId];
   if (!st || st.mode !== 'quiz') return;
-  const q = st.questions[st.qIndex];
+  const q     = st.questions[st.qIndex];
   const total = st.questions.length;
   md(chatId,
     `🧠 *Viktorina!* (${st.qIndex + 1}/${total})\n\n📝 ${q.q}\n\n` +
@@ -1013,9 +1064,11 @@ function showAdminStats(chatId) {
     `💬 Xabarlar: *${stats.messages}*\n` +
     `👥 Foydalanuvchilar: *${stats.users.size}*\n` +
     `🔗 API so\'rovlar: *${stats.apiCalls}*\n` +
+    `🤖 Groq so\'rovlar: *${stats.groqCalls}*\n` +
     `⭐ O\'rtacha baho: *${avg}/10*\n` +
     `🗂 Baholar: *${vals.length}*\n` +
-    `💾 Tarixli chatlar: *${Object.keys(userHistory).length}*`
+    `💾 Tarixli chatlar: *${Object.keys(userHistory).length}*\n` +
+    `🔑 Groq keys: *${CONFIG.GROQ_KEYS.length} ta*`
   );
 }
 
@@ -1036,7 +1089,6 @@ bot.on('message', async (msg) => {
 
   // ── Inline matn buyruqlari ─────────────────────
 
-  // Ob-havo: "ob-havo Toshkent" / "weather London"
   const weatherMatch = text.match(/^(?:ob-havo|weather|havo)\s+(.+)/i);
   if (weatherMatch) {
     const city = weatherMatch[1].trim();
@@ -1050,7 +1102,6 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Valyuta: "kurs USD UZS" / "dollar kurs"
   if (/^kurs\s+/i.test(text) || /^(dollar|euro|rubl)\s*(kurs|narx)/i.test(text)) {
     await typing(chatId);
     let from = 'USD', to = 'UZS', amount = 1;
@@ -1067,7 +1118,6 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Hazil inline
   if (/^(hazil|joke|kuldur|kulgi)$/i.test(lower)) {
     await typing(chatId);
     const joke = await getJoke();
@@ -1078,9 +1128,8 @@ bot.on('message', async (msg) => {
     });
   }
 
-  // ── State machine'lar ──────────────────────────
+  // ── State machine ──────────────────────────────
 
-  // Baho
   if (state?.mode === 'rating') {
     const n = parseInt(text);
     if (isNaN(n) || n < 1 || n > 10) return md(chatId, '⚠️ 1 dan 10 gacha son kiriting.');
@@ -1093,7 +1142,6 @@ bot.on('message', async (msg) => {
     return md(chatId, `${emojis[n]} *${msgs[n]}*\n\nBahoyingiz: *${n}/10* ✅\n\nRahmat! 🙏`, MAIN_KB);
   }
 
-  // Admin savol
   if (state?.mode === 'question') {
     userState[chatId] = null;
     await md(chatId, '✅ Savolingiz adminga yuborildi! 24 soat ichida javob kuting. 😊', MAIN_KB);
@@ -1102,7 +1150,6 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // BMI — vazn
   if (state?.mode === 'bmi_weight') {
     const w = parseFloat(text);
     if (isNaN(w) || w < 10 || w > 500) return md(chatId, '⚠️ To\'g\'ri vazn kiriting (kg, masalan: 70)');
@@ -1110,12 +1157,11 @@ bot.on('message', async (msg) => {
     return md(chatId, '📏 Bo\'yingizni kiriting (sm, masalan: 175):', NO_KB);
   }
 
-  // BMI — bo'y
   if (state?.mode === 'bmi_height') {
     const h = parseFloat(text);
     if (isNaN(h) || h < 50 || h > 300) return md(chatId, '⚠️ To\'g\'ri bo\'y kiriting (sm, masalan: 175)');
-    const result = calcBMI(state.weight, h);
-    const savedH = h;
+    const result  = calcBMI(state.weight, h);
+    const savedH  = h;
     userState[chatId] = null;
     return md(chatId, result, {
       parse_mode: 'Markdown',
@@ -1126,13 +1172,12 @@ bot.on('message', async (msg) => {
     });
   }
 
-  // Tarjimon
   if (state?.mode === 'translate') {
     userState[chatId] = null;
     await typing(chatId);
-    const hasLatin = /[a-zA-Z]{3,}/.test(text);
-    const from = hasLatin ? 'en' : 'uz';
-    const to   = hasLatin ? 'uz' : 'en';
+    const hasLatin   = /[a-zA-Z]{3,}/.test(text);
+    const from       = hasLatin ? 'en' : 'uz';
+    const to         = hasLatin ? 'uz' : 'en';
     const translated = await safeFetch(() => translateAuto(text, from, to));
     stats.apiCalls++;
     const encoded  = encodeURIComponent(text);
@@ -1152,7 +1197,6 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Ob-havo city
   if (state?.mode === 'weather_city') {
     await typing(chatId);
     userState[chatId] = null;
@@ -1165,7 +1209,6 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Raqam topish o'yini
   if (state?.mode === 'guess') {
     const n = parseInt(text);
     if (isNaN(n) || n < 1 || n > 100) return md(chatId, '🔢 1 dan 100 gacha son kiriting.');
@@ -1189,16 +1232,15 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Tosh-Qaychi-Qog'oz
   if (state?.mode === 'rps') {
     const map = { 'tosh':0,'qaychi':1,"qog'oz":2,'qogoz':2,'tash':0,'paper':2,'scissors':1,'rock':0 };
-    const k = lower.replace(/'/g, "'");
+    const k   = lower.replace(/'/g, "'");
     if (!(k in map)) return md(chatId, "✋ *Tosh*, *Qaychi* yoki *Qog'oz* deb yozing.");
-    const opts = ['Tosh 🪨','Qaychi ✂️',"Qog'oz 📄"];
+    const opts      = ['Tosh 🪨','Qaychi ✂️',"Qog'oz 📄"];
     const botChoice = Math.floor(Math.random() * 3);
-    const usr = map[k];
-    const diff = (usr - botChoice + 3) % 3;
-    const res = diff === 0 ? '🤝 Durrang!' : diff === 1 ? '🏆 Siz yutdingiz!' : '🤖 Men yutdim!';
+    const usr       = map[k];
+    const diff      = (usr - botChoice + 3) % 3;
+    const res       = diff === 0 ? '🤝 Durrang!' : diff === 1 ? '🏆 Siz yutdingiz!' : '🤖 Men yutdim!';
     userState[chatId] = null;
     return md(chatId,
       `Siz: *${opts[usr]}*\nMen: *${opts[botChoice]}*\n\n${res}`, {
@@ -1208,18 +1250,15 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Viktorina
   if (state?.mode === 'quiz') {
     const qi = state.qIndex;
     const q  = state.questions[qi];
     const n  = parseInt(text) - 1;
     if (n < 0 || n >= q.opts.length) return md(chatId, `1 dan ${q.opts.length} gacha raqam kiriting.`);
-
     let fb = '';
     if (n === q.c) { state.score++; fb = '✅ *To\'g\'ri!*\n\n'; }
     else           { fb = `❌ *Noto\'g\'ri!*\nTo\'g\'ri: *${q.opts[q.c]}*\n\n`; }
     state.qIndex++;
-
     const total = state.questions.length;
     if (state.qIndex < total) {
       const nq = state.questions[state.qIndex];
@@ -1228,7 +1267,6 @@ bot.on('message', async (msg) => {
         nq.opts.map((o, i) => `${i + 1}. ${o}`).join('\n') + '\n\n_Raqamni yozing (1–4)_'
       );
     }
-
     userState[chatId] = null;
     const sc    = state.score;
     const pct   = Math.round(sc / total * 100);
@@ -1241,7 +1279,6 @@ bot.on('message', async (msg) => {
     );
   }
 
-  // Rasm yaratish
   if (state?.mode === 'image_gen') {
     userState[chatId] = null;
     await typing(chatId);
@@ -1259,13 +1296,11 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // Musiqa qidirish
   if (state?.mode === 'music_search') {
     userState[chatId] = null;
     await typing(chatId);
-    let videoId = null;
+    let videoId    = null;
     let videoTitle = text;
-
     const ytLinkMatch = text.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
     if (ytLinkMatch) {
       videoId = ytLinkMatch[1];
@@ -1279,29 +1314,26 @@ bot.on('message', async (msg) => {
         if (t) videoTitle = t[1];
       }
     }
-
     if (!videoId) {
       return md(chatId, '❌ Qo\'shiq topilmadi. Boshqacha yozing yoki YouTube link yuboring.', {
         reply_markup: { inline_keyboard: [[{ text: '🔄 Qayta urinish', callback_data: 'music_again' }]] },
       });
     }
-
     const ytUrl = `https://youtube.com/watch?v=${videoId}`;
     const q     = encodeURIComponent(videoTitle !== text ? videoTitle : text);
     return md(chatId, `🎵 *${videoTitle}*`, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '⬇️ MP3 yuklab olish', url: `https://yt1s.com/youtube-to-mp3?q=${q}` }],
-          [{ text: '⬇️ Boshqa converter',  url: `https://ytmp3.cc/youtube-to-mp3/?url=${encodeURIComponent(ytUrl)}` }],
-          [{ text: '▶️ YouTube',           url: ytUrl }],
-          [{ text: '🔄 Boshqa qo\'shiq',   callback_data: 'music_again' }],
+          [{ text: '⬇️ MP3 yuklab olish',  url: `https://yt1s.com/youtube-to-mp3?q=${q}` }],
+          [{ text: '⬇️ Boshqa converter',   url: `https://ytmp3.cc/youtube-to-mp3/?url=${encodeURIComponent(ytUrl)}` }],
+          [{ text: '▶️ YouTube',            url: ytUrl }],
+          [{ text: '🔄 Boshqa qo\'shiq',    callback_data: 'music_again' }],
         ],
       },
     });
   }
 
-  // Qidirish
   if (state?.mode === 'web_search') {
     userState[chatId] = null;
     const q = encodeURIComponent(text);
@@ -1309,16 +1341,15 @@ bot.on('message', async (msg) => {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🌐 Google',    url: `https://www.google.com/search?q=${q}` }],
-          [{ text: '📺 YouTube',   url: `https://www.youtube.com/results?search_query=${q}` }],
-          [{ text: '📖 Wikipedia', url: `https://uz.wikipedia.org/w/index.php?search=${q}` }],
+          [{ text: '🌐 Google',        url: `https://www.google.com/search?q=${q}` }],
+          [{ text: '📺 YouTube',       url: `https://www.youtube.com/results?search_query=${q}` }],
+          [{ text: '📖 Wikipedia',     url: `https://uz.wikipedia.org/w/index.php?search=${q}` }],
           [{ text: '🔄 Yana qidirish', callback_data: 'search_again' }],
         ],
       },
     });
   }
 
-  // Tasodifiy tanlov (state)
   if (state?.mode === 'random_choice') {
     userState[chatId] = null;
     const orMatch = text.replace('?', '').match(/(.+?)\s+yoki\s+(.+)/i);
@@ -1346,18 +1377,20 @@ bot.on('message', async (msg) => {
     return bot.sendMessage(chatId, '📚 *IELTS PDF Kutubxonasi*\n\nQaysi PDF ni yuklab olishni xohlaysiz?', {
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [
-          [{ text: '📖 Vocabulary (Sinonimlar)',    callback_data: 'pdf_vocab' }],
-          [{ text: '📝 Grammar Guide (If+Modals)',  callback_data: 'pdf_grammar' }],
-          [{ text: '🎤 Speaking Phrases (Band 7-9)', callback_data: 'pdf_speaking' }],
-          [{ text: '📦 Barcha 3 PDF',               callback_data: 'pdf_all' }],
-        ],
+inline_keyboard: [
+  [{ text: '📖 Vocabulary (Sinonimlar)',     callback_data: 'pdf_vocab' }],
+  [{ text: '📝 Grammar Guide (If+Modals)',   callback_data: 'pdf_grammar' }],
+  [{ text: '🎤 Speaking Phrases (Band 7-9)', callback_data: 'pdf_speaking' }],
+  [{ text: '📋 Conditions Grammar',          callback_data: 'pdf_conditions' }],
+  [{ text: '⏱ English Tenses',              callback_data: 'pdf_tenses' }],
+  [{ text: '📦 Barcha 5 PDF',               callback_data: 'pdf_all' }],
+],
       },
     });
   }
 
-  if (/Dasturlash va Python|🐍/.test(text)) {
-    return md(chatId, '🐍 *Dasturlash O\'rganish Resurslari*', {
+  if (/Python Darslar|🐍/.test(text)) {
+    return md(chatId, '🐍 *Python Dasturlash Resurslari*', {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -1390,8 +1423,7 @@ bot.on('message', async (msg) => {
   if (/Faktlar|🌟/.test(text) && !/Motivatsiya/.test(text)) {
     await typing(chatId);
     const timeoutP = new Promise(r => setTimeout(() => r(null), 7000));
-    const factP    = getFactWithTranslation();
-    const res      = await Promise.race([factP, timeoutP]);
+    const res      = await Promise.race([getFactWithTranslation(), timeoutP]);
     stats.apiCalls++;
     if (!res) {
       const t = FACTS_STATIC[Math.floor(Math.random() * FACTS_STATIC.length)];
@@ -1411,9 +1443,12 @@ bot.on('message', async (msg) => {
     });
   }
 
-if (/Maslahatlar|💡/.test(text)) {
-  return md(chatId, getRandomTip(), MAIN_KB);
-}
+  if (/Maslahatlar|💡/.test(text)) {
+    return md(chatId, getRandomTip(), {
+      parse_mode: 'Markdown',
+      reply_markup: { ...TIP_INLINE_KB, ...MAIN_KB.reply_markup },
+    });
+  }
 
   if (/Marvel|🎬/.test(text)) {
     const movies = [
@@ -1492,13 +1527,13 @@ if (/Maslahatlar|💡/.test(text)) {
 
   if (/Bot Haqida|ℹ️/.test(text)) {
     return md(chatId,
-      `ℹ️ *Bekzod Help Bot v5.0*\n\n` +
+      `ℹ️ *Bekzod Help Bot v5.1*\n\n` +
       `👨‍💻 Muallif: *Bekzod Baratov* (@bekzod_stack)\n` +
       `📅 Yaratilgan: 2025-yil\n` +
       `🛠 Stack: Node.js + Express\n` +
-      `🤖 AI: Groq (llama-3.3-70b)\n\n` +
+      `🤖 AI: Groq (llama-3.3-70b) — *${CONFIG.GROQ_KEYS.length} ta key*\n\n` +
       `*Imkoniyatlar:*\n` +
-      `• 🤖 AI suhbat (kuchaytirilgan)\n` +
+      `• 🤖 AI suhbat (multi-key, fallback)\n` +
       `• 🌍 Real-time faktlar + tarjima\n` +
       `• 🌤 Ob-havo, 💱 Valyuta kurslari\n` +
       `• 😂 Hazillar, 💪 Motivatsiya\n` +
@@ -1518,6 +1553,7 @@ if (/Maslahatlar|💡/.test(text)) {
       `💬 Xabarlar: *${stats.messages}*\n` +
       `👥 Foydalanuvchilar: *${stats.users.size}*\n` +
       `🔗 API so'rovlar: *${stats.apiCalls}*\n` +
+      `🤖 Groq so'rovlar: *${stats.groqCalls}*\n` +
       `⭐ O'rtacha baho: *${avg}/10*`,
       MAIN_KB
     );
@@ -1575,30 +1611,22 @@ if (/Maslahatlar|💡/.test(text)) {
   const quick = quickReply(text);
   if (quick) return md(chatId, quick, MAIN_KB);
 
-  // ── Groq AI — asosiy AI javob ─────────────────
+  // ── Groq AI — multi-key + fallback ───────────
   await typing(chatId);
+  stats.groqCalls++;
   const { answer, error } = await askGroq(text, chatId);
 
   if (answer) {
     return md(chatId, answer, { parse_mode: 'Markdown', reply_markup: MAIN_KB.reply_markup });
   }
 
-  // Groq ishlamasa — xato xabari
-  if (error) {
-    const fallbacks = [
-      '🤔 Hozir AI tizimida muammo bor. Keyinroq urinib ko\'ring! 😊',
-      '⚠️ AI vaqtinchalik ishlamayapti. Menyudan foydalaning! 👇',
-      '🔄 Javob yuklanmadi. Iltimos, qayta yozing.',
-    ];
-    return md(chatId, fallbacks[Math.floor(Math.random() * fallbacks.length)], MAIN_KB);
-  }
-
-  // Umumiy fallback
-  const defaults = [
-    '🤔 Tushunmadim. Aniqroq yozing yoki menyudan tanlang! 😊',
-    '💡 Bu savolga javob topa olmadim. Menyudan kerakli bo\'limni oching! 👇',
+  // Groq ishlamasa
+  const fallbacks = [
+    '🤔 Hozir AI tizimida muammo bor. Keyinroq urinib ko\'ring! 😊',
+    '⚠️ AI vaqtinchalik band. Menyudan foydalaning! 👇',
+    '🔄 Javob yuklanmadi. Iltimos, qayta yozing.',
   ];
-  md(chatId, defaults[Math.floor(Math.random() * defaults.length)], MAIN_KB);
+  return md(chatId, fallbacks[Math.floor(Math.random() * fallbacks.length)], MAIN_KB);
 });
 
 // ════════════════════════════════════════════════════
@@ -1610,17 +1638,17 @@ bot.on('callback_query', async (query) => {
   const data   = query.data;
   await bot.answerCallbackQuery(query.id).catch(() => {});
 
-  // PDF
   if (data === 'pdf_vocab')    return sendPDF(chatId, 'vocab');
   if (data === 'pdf_grammar')  return sendPDF(chatId, 'grammar');
   if (data === 'pdf_speaking') return sendPDF(chatId, 'speaking');
+  if (data === 'pdf_conditions') return sendPDF(chatId, 'conditions');
+  if (data === 'pdf_tenses')     return sendPDF(chatId, 'tenses'); 
   if (data === 'pdf_all') {
-    await md(chatId, '📦 Barcha 3 ta PDF yuborilmoqda...');
+    await md(chatId, '📦 Barcha 5 ta PDF yuborilmoqda...');
     for (const k of ['vocab', 'grammar', 'speaking']) await sendPDF(chatId, k);
     return md(chatId, '✅ Barcha PDFlar yuborildi! Muvaffaqiyatlar! 🎓', MAIN_KB);
   }
 
-  // Fakt
   if (data === 'fact_api') {
     await bot.answerCallbackQuery(query.id, { text: '⏳ Yuklanmoqda...' }).catch(() => {});
     await typing(chatId);
@@ -1645,7 +1673,6 @@ bot.on('callback_query', async (query) => {
     });
   }
 
-  // Hazil
   if (data === 'joke_api') {
     await bot.answerCallbackQuery(query.id, { text: '😂 Yuklanyapti...' }).catch(() => {});
     await typing(chatId);
@@ -1657,7 +1684,6 @@ bot.on('callback_query', async (query) => {
     });
   }
 
-  // Iqtibos
   if (data === 'quote_api') {
     await bot.answerCallbackQuery(query.id, { text: '💪 Yuklanmoqda...' }).catch(() => {});
     await typing(chatId);
@@ -1669,30 +1695,19 @@ bot.on('callback_query', async (query) => {
     });
   }
 
-  // Maslahat kategoriyalari
   if (data.startsWith('tip_')) {
     const cat = data.replace('tip_', '');
     return md(chatId, getRandomTip(cat), {
       parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-            [{ text: '🏃 Sog\'liq', callback_data: 'tip_health' }, { text: '⚡ Samaradorlik', callback_data: 'tip_productivity' }],
-            [{ text: '📚 O\'rganish', callback_data: 'tip_learning' }, { text: '🌟 Muvaffaqiyat', callback_data: 'tip_success' }],
-            [{ text: '🧠 Tafakkur', callback_data: 'tip_mindset' }, { text: '👥 Munosabat', callback_data: 'tip_relationships' }],
-            [{ text: '💸 Moliya', callback_data: 'tip_finance' }, { text: '🗓️ Odatlar', callback_data: 'tip_habits' }],
-        ],
-        ...MAIN_KB.reply_markup,
-      },
+      reply_markup: { ...TIP_INLINE_KB, ...MAIN_KB.reply_markup },
     });
   }
 
-  // Tarjima
   if (data === 'translate_more') {
     userState[chatId] = { mode: 'translate' };
     return md(chatId, '🌐 Tarjima qilmoqchi bo\'lgan so\'z yoki jumlani yozing:', NO_KB);
   }
 
-  // Rasm
   if (data.startsWith('img_')) {
     const prompt   = data.replace('img_', '');
     const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true&seed=${Math.floor(Math.random() * 9999)}`;
@@ -1708,7 +1723,6 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
-  // Musiqa
   if (data === 'music_again') {
     userState[chatId] = { mode: 'music_search' };
     return md(chatId, '🎵 Qo\'shiq nomi yoki ijrochi yozing:', NO_KB);
@@ -1719,7 +1733,6 @@ bot.on('callback_query', async (query) => {
     return md(chatId, '🔍 Nima qidirmoqchisiz?', NO_KB);
   }
 
-  // Tasodifiy tanlov — qayta
   if (data.startsWith('rnd_')) {
     const original = data.replace('rnd_', '');
     const orMatch  = original.replace('?', '').match(/(.+?)\s+yoki\s+(.+)/i);
@@ -1735,7 +1748,6 @@ bot.on('callback_query', async (query) => {
     }
   }
 
-  // O'yinlar
   if (data === 'game_guess') {
     userState[chatId] = { mode: 'guess', secret: Math.floor(Math.random() * 100) + 1, tries: 0 };
     return md(chatId, '🔢 *Raqam topish!*\n\n1 dan 100 gacha son o\'yladim.\n10 ta urinish bor! 🤔');
@@ -1746,11 +1758,8 @@ bot.on('callback_query', async (query) => {
     return md(chatId, "✂️ *Tosh-Qaychi-Qog'oz*\n\nYozing: *Tosh* 🪨, *Qaychi* ✂️ yoki *Qog'oz* 📄");
   }
 
-  if (data === 'game_quiz') {
-    return startQuiz(chatId);
-  }
+  if (data === 'game_quiz') return startQuiz(chatId);
 
-  // Ideal vazn
   if (data.startsWith('idealw_')) {
     const height = parseFloat(data.replace('idealw_', ''));
     return md(chatId, '👤 Jinsingizni tanlang:', {
@@ -1770,7 +1779,6 @@ bot.on('callback_query', async (query) => {
     return md(chatId, calcIdealWeight(height, gender), MAIN_KB);
   }
 
-  // Admin statistika
   if (data === 'admin_stats' && query.from.id === CONFIG.ADMIN_ID) {
     return showAdminStats(chatId);
   }
@@ -1780,13 +1788,15 @@ bot.on('callback_query', async (query) => {
 //  §24. EXPRESS SERVERI
 // ════════════════════════════════════════════════════
 
-app.get('/',       (_, res) => res.json({ status: 'ok', bot: 'Bekzod Help Bot v5', version: '5.0' }));
+app.get('/',       (_, res) => res.json({ status: 'ok', bot: 'Bekzod Help Bot v5.1', version: '5.1' }));
 app.get('/health', (_, res) => res.json({
-  uptime:   process.uptime().toFixed(0) + 's',
-  messages: stats.messages,
-  users:    stats.users.size,
-  apiCalls: stats.apiCalls,
-  model:    CONFIG.GROQ_MODEL,
+  uptime:    process.uptime().toFixed(0) + 's',
+  messages:  stats.messages,
+  users:     stats.users.size,
+  apiCalls:  stats.apiCalls,
+  groqCalls: stats.groqCalls,
+  groqKeys:  CONFIG.GROQ_KEYS.length,
+  model:     CONFIG.GROQ_MODEL.trim(),
 }));
 
 app.listen(CONFIG.PORT, '0.0.0.0', () =>
@@ -1799,10 +1809,10 @@ app.listen(CONFIG.PORT, '0.0.0.0', () =>
 
 console.log('');
 console.log('╔═══════════════════════════════════════════╗');
-console.log('║   BEKZOD HELP BOT v5.0 — Ishga tushdi!   ║');
+console.log('║  BEKZOD HELP BOT v5.1 — Ishga tushdi!    ║');
 console.log('╚═══════════════════════════════════════════╝');
-console.log(`🤖 Model: ${CONFIG.GROQ_MODEL}`);
-console.log(`🔑 GROQ:  ${CONFIG.GROQ_API_KEY ? '✅ (' + CONFIG.GROQ_API_KEY.slice(0, 8) + '...)' : '❌ YO\'Q!'}`);
-console.log(`🌐 Port:  ${CONFIG.PORT}`);
-console.log('✅ APIs:  UselessFacts · NumbersAPI · CatFact · MyMemory · wttr.in · ExchangeRate · JokeAPI · ZenQuotes');
+console.log(`🤖 Model:      ${CONFIG.GROQ_MODEL.trim()}`);
+console.log(`🔑 GROQ: ${CONFIG.GROQ_KEYS.length} ta key yuklandi ✅`);
+console.log(`🌐 Port:       ${CONFIG.PORT}`);
+console.log('✅ APIs: UselessFacts · NumbersAPI · CatFact · MyMemory · wttr.in · ExchangeRate · JokeAPI · ZenQuotes');
 console.log('');
