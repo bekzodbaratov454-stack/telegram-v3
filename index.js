@@ -25,6 +25,7 @@ const path        = require('path');
 const fs          = require('fs');
 const https       = require('https');
 const http        = require('http');
+const { url } = require('inspector');
 
 // ════════════════════════════════════════════════════
 //  §1. KONFIGURATSIYA
@@ -783,11 +784,12 @@ function calcIdealWeight(height, gender) {
 // ════════════════════════════════════════════════════
 
 const PROJECTS = [
+  {name: '💬 TheFacebook - Next Gen Social Network' , url: 'http://thefacebook.onrender.com/'},
   { name: '🌐 CosmoX — Shaxsiy Portfolio',  url: 'https://cosmosx.onrender.com/' },
-  { name: '🛒 Do\'kon Guzor Hozmak',          url: 'https://do-kon-guzor-hozmak.vercel.app/' },
+  { name: '🍗 KFC UZ Admin Panel',           url: 'https://kfc-uz-admin.vercel.app/' },
   { name: '🌍 Country Information',          url: 'https://country-information-bekzod-ten.vercel.app/' },
   { name: '📲 QR Code Generator',            url: 'https://qr-code-bekzod-six.vercel.app/' },
-  { name: '🍗 KFC UZ Admin Panel',           url: 'https://kfc-uz-admin.vercel.app/' },
+  { name: '🛒 Do\'kon Guzor Hozmak',          url: 'https://do-kon-guzor-hozmak.vercel.app/' },
 ];
 
 const PDF_DIR = path.join(__dirname, 'pdfs');
