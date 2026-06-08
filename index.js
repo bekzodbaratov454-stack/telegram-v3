@@ -284,11 +284,13 @@ Sen Bekzod Baratovning shaxsiy AI yordamchi botisan.
 - Qiziqishlar: AI/Telegram botlar, Game dev, kino/serial, voleybol
 
 ━━━ LOYIHALAR ━━━
+- TheFacebook -> thefacebook.onrender.com
 - CosmoX Portfolio → cosmosx.onrender.com
-- Do'kon Guzor Hozmak → do-kon-guzor-hozmak.vercel.app
+- KFC UZ Admin → kfc-uz-admin.vercel.app
 - Country Info → country-information-bekzod-ten.vercel.app
 - QR Generator → qr-code-bekzod-six.vercel.app
-- KFC UZ Admin → kfc-uz-admin.vercel.app
+- Do'kon Guzor Hozmak → do-kon-guzor-hozmak.vercel.app
+
 
 ━━━ SEVIMLI KINOLAR VA SERIALLAR ━━━
 - Marvel: Avengers (eng sevimli), Guardians of the Galaxy, Captain America
