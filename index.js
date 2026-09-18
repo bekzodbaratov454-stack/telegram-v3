@@ -38,7 +38,7 @@ const CONFIG = {
     process.env.GROQ_API_KEY_1,
     process.env.GROQ_API_KEY_2,
   ].filter(Boolean),
-  GROQ_MODEL:   'llama-3.3-70b-versatile',
+  GROQ_MODEL:   'openai/gpt-oss-120b',
   GROQ_TIMEOUT: 20000,
   API_TIMEOUT:  8000,
   HISTORY_MAX:  20,
